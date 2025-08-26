@@ -1,6 +1,7 @@
 from django.db import models
 from users.models import AuditModel, phone_regex
 import uuid
+from caritas_backend.settings import AUTH_USER_MODEL
 
 ########################################################
 # MODELOS DE ALBERGUES
@@ -91,11 +92,15 @@ class Hostel(AuditModel):
     )
     men_capacity = models.PositiveIntegerField(
         verbose_name="Capacidad de hombres",
-        help_text="Número máximo de hombres que puede albergar el albergue"
+        help_text="Número máximo de hombres que puede albergar el albergue",
+        null=True,
+        blank=True
     )
     women_capacity = models.PositiveIntegerField(
         verbose_name="Capacidad de mujeres",
-        help_text="Número máximo de mujeres que puede albergar el albergue"
+        help_text="Número máximo de mujeres que puede albergar el albergue",
+        null=True,
+        blank=True
     )
     is_active = models.BooleanField(
         default=True,
@@ -107,6 +112,12 @@ class Hostel(AuditModel):
         verbose_name = "Albergue"
         verbose_name_plural = "Albergues"
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(men_capacity__isnull=False) | models.Q(women_capacity__isnull=False),
+                name='at_least_one_capacity_required'
+            )
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.phone}) - {self.location.city}, {self.location.state}"
@@ -126,3 +137,44 @@ class Hostel(AuditModel):
     def get_total_capacity(self):
         """Retorna la capacidad total del albergue"""
         return self.men_capacity + self.women_capacity
+
+class HostelReservation(AuditModel):
+    """
+    Modelo para reservas de albergues.
+    """
+    class ReservationStatus(models.TextChoices):
+        PENDING = "pending", "Pendiente"
+        CONFIRMED = "confirmed", "Confirmada"
+        CANCELLED = "cancelled", "Cancelada"
+        REJECTED = "rejected", "Rechazada"
+        COMPLETED = "completed", "Completada"
+
+    class ReservationType(models.TextChoices):
+        INDIVIDUAL = "individual", "Individual"
+        GROUP = "group", "Grupo"
+
+    # Campos principales
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Usuario")
+    hostel = models.ForeignKey(Hostel, on_delete=models.CASCADE, verbose_name="Albergue")
+    status = models.CharField(max_length=255, verbose_name="Estado", choices=ReservationStatus.choices)
+    type = models.CharField(max_length=255, verbose_name="Tipo", choices=ReservationType.choices)
+
+    # Campos específicos
+    arrival_date = models.DateField(verbose_name="Fecha de llegada")
+    men_quantity = models.PositiveIntegerField(verbose_name="Cantidad de hombres", null=True, blank=True)
+    women_quantity = models.PositiveIntegerField(verbose_name="Cantidad de mujeres", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Reserva de albergue"
+        verbose_name_plural = "Reservas de albergue"
+        ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(men_quantity__isnull=False) | models.Q(women_quantity__isnull=False),
+                name='at_least_one_quantity_required'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} - {self.hostel.name} - {self.status}"

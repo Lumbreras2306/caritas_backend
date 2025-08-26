@@ -18,6 +18,11 @@ GENDER_CHOICES = [
     ('F', 'Femenino')
 ]
 
+class STATUS_CHOICES(models.TextChoices):
+    PENDING = "pending", "Pendiente"
+    APPROVED = "approved", "Aprobado"
+    REJECTED = "rejected", "Rechazado"
+
 phone_regex = RegexValidator(
     regex=r'^\+\d{1,3}\s\d{7,15}$',
     message="El número telefónico debe estar en formato: '+XX XXXXXXXXXX'."
@@ -84,6 +89,7 @@ class PreRegisterUser(AuditModel):
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     privacy_policy_accepted = models.BooleanField(default=False)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES.choices, default=STATUS_CHOICES.PENDING)
 
     class Meta:
         verbose_name = "Usuario pre-registro"
