@@ -1,7 +1,7 @@
 from django.db import models
 from users.models import AuditModel
 from albergues.models import Hostel
-from caritas_backend.settings import AUTH_USER_MODEL
+
 import uuid
 from datetime import timedelta
 
@@ -52,7 +52,7 @@ class HostelService(AuditModel):
     Modelo para servicios de albergues.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    hostel = models.ForeignKey(Hostel, on_delete=models.CASCADE, verbose_name="Albergue")
+    hostel = models.ForeignKey('albergues.Hostel', on_delete=models.CASCADE, verbose_name="Albergue")
     service = models.ForeignKey(Service, on_delete=models.CASCADE, verbose_name="Servicio")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
 
@@ -81,7 +81,7 @@ class ReservationService(AuditModel):
         GROUP = "group", "Grupo"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Usuario")
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, verbose_name="Usuario")
     service = models.ForeignKey(HostelService, on_delete=models.CASCADE, verbose_name="Servicio")
     status = models.CharField(max_length=255, verbose_name="Estado", choices=ReservationStatus.choices)
     type = models.CharField(max_length=255, verbose_name="Tipo", choices=ReservationType.choices)
@@ -100,7 +100,7 @@ class ReservationService(AuditModel):
         constraints = [
             models.CheckConstraint(
                 check=models.Q(men_quantity__isnull=False) | models.Q(women_quantity__isnull=False),
-                name='at_least_one_quantity_required'
+                name='service_reservation_at_least_one_quantity_required'
             )
         ]
 

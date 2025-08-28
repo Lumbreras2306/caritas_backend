@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import CustomUser, PreRegisterUser, AdminUser, OTPCode, STATUS_CHOICES, phone_regex
+from .models import CustomUser, PreRegisterUser, AdminUser, OTPCode, STATUS_CHOICES, Hostel, phone_regex
 from django.utils import timezone
 from django.db import models
 
@@ -21,13 +21,17 @@ class PreRegisterUserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'status', 'created_at']
     
     def create(self, validated_data):
+        # Validar que el número de teléfono sea válido
+        if not phone_regex.match(validated_data['phone_number']):
+            raise serializers.ValidationError("El número de teléfono no es válido")
+        
         # Validar si el usuario ya existe
         user_exists = CustomUser.objects.filter(phone_number=validated_data['phone_number']).exists()
         if user_exists:
             raise serializers.ValidationError("El usuario ya existe, por favor inicie sesión")
         
         # Validar si el pre-registro ya existe
-        pre_register = PreRegisterUser.objects.filter(phone_number=validated_data['phone_number'])
+        pre_register = PreRegisterUser.objects.filter(phone_number=validated_data['phone_number']).first()
         if pre_register:
             if pre_register.status == STATUS_CHOICES.PENDING:
                 raise serializers.ValidationError("El pre-registro esta pendiente de aprobación")
@@ -102,23 +106,19 @@ class CustomUserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El usuario ya existe, por favor inicie sesión")
         
         # Modificar el campo de status del pre-registro a aprobado
-        pre_register = PreRegisterUser.objects.filter(phone_number=validated_data['phone_number'])
+        pre_register = PreRegisterUser.objects.filter(phone_number=validated_data['phone_number']).first()
         if pre_register:
             pre_register.status = STATUS_CHOICES.APPROVED
             pre_register.save()
         
         return super().create(validated_data)
-    
-    def update(self, instance, validated_data):
-        # Lógica personalizada para actualizar si es necesaria
-        return super().update(instance, validated_data)
 
 # ============================================================================
 # SERIALIZERS PARA ADMINISTRADORES
 # ============================================================================
 
 class AdminUserSerializer(serializers.ModelSerializer):
-    """Serializer unificado para AdminUser - compatible con ViewSets"""
+    """Serializer unificado para AdminUser"""
     main_hostel_name = serializers.CharField(source='main_hostel.name', read_only=True)
     password = serializers.CharField(write_only=True, min_length=8, required=False)
     password_confirm = serializers.CharField(write_only=True, required=False)
@@ -127,11 +127,11 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = AdminUser
         fields = [
             'id', 'username', 'first_name', 'last_name', 
-            'main_hostel', 'main_hostel_name', 'is_active', 'is_staff', 
-            'is_superuser', 'last_login', 'created_at', 'updated_at',
+            'main_hostel_name', 'is_active', 'is_staff', 
+            'is_superuser', 'last_login',
             'password', 'password_confirm'
         ]
-        read_only_fields = ['id', 'last_login', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'last_login']
     
     def validate(self, attrs):
         # Validar contraseñas solo si se están cambiando
@@ -139,6 +139,14 @@ class AdminUserSerializer(serializers.ModelSerializer):
             if attrs['password'] != attrs['password_confirm']:
                 raise serializers.ValidationError("Las contraseñas no coinciden")
         return attrs
+    
+    def validate_main_hostel_name(self, value):
+        # Validar que el albergue exista
+        try:
+            Hostel.objects.get(name=value)
+        except Hostel.DoesNotExist:
+            raise serializers.ValidationError("El albergue no existe")
+        return value
     
     def create(self, validated_data):
         if 'password' in validated_data:
@@ -184,7 +192,7 @@ class AdminUserPasswordChangeSerializer(serializers.Serializer):
 # ============================================================================
 
 class OTPCodeSerializer(serializers.ModelSerializer):
-    """Serializer unificado para OTPCode - compatible con ViewSets"""
+    """Serializer unificado para OTPCode"""
     user_phone = serializers.CharField(source='user.phone_number', read_only=True)
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     

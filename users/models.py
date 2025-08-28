@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from albergues.models import Hostel
+else:
+    Hostel = 'albergues.Hostel'
 
 ########################################################
 # CONSTANTES Y VALIDADORES
@@ -44,25 +46,28 @@ class AuditModel(models.Model):
         verbose_name="Desactivado en"
     )
     created_by = models.ForeignKey(
-        'AdminUser',
+        'users.AdminUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Creado por"
+        verbose_name="Creado por",
+        related_name='%(class)s_created'
     )
     updated_by = models.ForeignKey(
-        'AdminUser',
+        'users.AdminUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Actualizado por"
+        verbose_name="Actualizado por",
+        related_name='%(class)s_updated'
     )
     deactivated_by = models.ForeignKey(
-        'AdminUser',
+        'users.AdminUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Desactivado por"
+        verbose_name="Desactivado por",
+        related_name='%(class)s_deactivated'
     )
 
     class Meta:
@@ -84,7 +89,7 @@ class PreRegisterUser(AuditModel):
         max_length=17, 
         unique=True,
         verbose_name="Número telefónico",
-        index=True
+        db_index=True
     )
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
@@ -119,7 +124,7 @@ class CustomUser(AuditModel):
         max_length=17, 
         unique=True,
         verbose_name="Número telefónico",
-        index=True
+        db_index=True
     )
     
     # Información personal
@@ -152,11 +157,12 @@ class CustomUser(AuditModel):
         verbose_name="Aprobado en"
     )
     approved_by = models.ForeignKey(
-        'AdminUser',
+        'users.AdminUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Aprobado por"
+        verbose_name="Aprobado por",
+        related_name='custom_users_approved'
     )
     
     class Meta:
@@ -230,7 +236,7 @@ class AdminUser(AbstractBaseUser, PermissionsMixin):
     # Campos de albergue
     """ ESTA RELACIÓN ES ÚNICAMENTE PARA FILTRADO RÁPIDO, NO PARA RESTRICCIÓN DE ACCESO """
     main_hostel = models.OneToOneField(
-        Hostel,
+        'albergues.Hostel',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -266,7 +272,7 @@ class AdminUser(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = "Administrador"
         verbose_name_plural = "Administradores"
-        ordering = ['-created_at']
+        ordering = ['-last_login']
     
     def __str__(self):
         return f"{self.get_full_name()} ({self.username})"
@@ -303,7 +309,7 @@ class OTPCode(AuditModel):
         EMAIL = "email", "Email"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="otps")
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name="otps")
     purpose = models.CharField(max_length=32, choices=Purpose.choices)
     channel = models.CharField(max_length=16, choices=Channel.choices)
     hashed_code = models.CharField(max_length=255)

@@ -1,7 +1,7 @@
 from django.db import models
 from users.models import AuditModel, phone_regex
 import uuid
-from caritas_backend.settings import AUTH_USER_MODEL
+
 
 ########################################################
 # MODELOS DE ALBERGUES
@@ -82,7 +82,7 @@ class Hostel(AuditModel):
         max_length=17, 
         unique=True,
         verbose_name="Número telefónico",
-        index=True
+        db_index=True
     )
     location = models.OneToOneField(
         Location, 
@@ -155,7 +155,7 @@ class HostelReservation(AuditModel):
 
     # Campos principales
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Usuario")
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, verbose_name="Usuario")
     hostel = models.ForeignKey(Hostel, on_delete=models.CASCADE, verbose_name="Albergue")
     status = models.CharField(max_length=255, verbose_name="Estado", choices=ReservationStatus.choices)
     type = models.CharField(max_length=255, verbose_name="Tipo", choices=ReservationType.choices)
@@ -172,7 +172,7 @@ class HostelReservation(AuditModel):
         constraints = [
             models.CheckConstraint(
                 check=models.Q(men_quantity__isnull=False) | models.Q(women_quantity__isnull=False),
-                name='at_least_one_quantity_required'
+                name='hostel_reservation_at_least_one_quantity_required'
             )
         ]
 

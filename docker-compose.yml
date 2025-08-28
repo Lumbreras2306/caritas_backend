@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: caritas_db
+      POSTGRES_USER: caritas_user
+      POSTGRES_PASSWORD: caritas_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: .
+    environment:
+      - DB_NAME=caritas_db
+      - DB_USER=caritas_user
+      - DB_PASSWORD=caritas_password
+      - DB_HOST=db
+      - DB_PORT=5432
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
