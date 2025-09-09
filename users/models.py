@@ -1,155 +1,252 @@
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
+# models.py
+import uuid
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
-from django.db.models import Q, Index
-import uuid
-from typing import TYPE_CHECKING
+from django.core.validators import RegexValidator
 
-if TYPE_CHECKING:
-    from albergues.models import Hostel
-else:
-    Hostel = 'albergues.Hostel'
 
-########################################################
-# CONSTANTES Y VALIDADORES
-########################################################
-
-GENDER_CHOICES = [
-    ('M', 'Masculino'),
-    ('F', 'Femenino')
-]
-
-class STATUS_CHOICES(models.TextChoices):
-    PENDING = "pending", "Pendiente"
-    APPROVED = "approved", "Aprobado"
-    REJECTED = "rejected", "Rechazado"
+# ============================================================================
+# VALIDADORES Y CHOICES
+# ============================================================================
 
 phone_regex = RegexValidator(
-    regex=r'^\+\d{1,3}\s\d{7,15}$',
-    message="El número telefónico debe estar en formato: '+XX XXXXXXXXXX'."
+    regex=r'^\+?1?\d{9,15}$',
+    message="El número de teléfono debe estar en formato: '+999999999'. Máximo 15 dígitos."
 )
 
-########################################################
-# MODELOS DE AUDITORIA
-########################################################
+class STATUS_CHOICES(models.TextChoices):
+    PENDING = 'PENDING', 'Pendiente'
+    APPROVED = 'APPROVED', 'Aprobado'
+    REJECTED = 'REJECTED', 'Rechazado'
+
+class GENDER_CHOICES(models.TextChoices):
+    M = 'M', 'Masculino'
+    F = 'F', 'Femenino'
+
+class POVERTY_LEVEL_CHOICES(models.TextChoices):
+    LEVEL_1 = 'LEVEL_1', 'Nivel 1'
+    LEVEL_2 = 'LEVEL_2', 'Nivel 2'
+    LEVEL_3 = 'LEVEL_3', 'Nivel 3'
+
+# ============================================================================
+# MODELOS BASE DE AUDITORÍA
+# ============================================================================
 
 class AuditModel(models.Model):
-    """
-    Modelo base para auditoría.
-    """
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deactivated_at = models.DateTimeField(
-        blank=True,
-        null=True,
-        verbose_name="Desactivado en"
-    )
+    """Modelo base para auditoría"""
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
     created_by = models.ForeignKey(
         'users.AdminUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Creado por",
-        related_name='%(class)s_created'
+        related_name="%(class)s_created",
+        verbose_name="Creado por"
     )
     updated_by = models.ForeignKey(
         'users.AdminUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Actualizado por",
-        related_name='%(class)s_updated'
-    )
-    deactivated_by = models.ForeignKey(
-        'users.AdminUser',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Desactivado por",
-        related_name='%(class)s_deactivated'
+        related_name="%(class)s_updated",
+        verbose_name="Actualizado por"
     )
 
     class Meta:
         abstract = True
 
-########################################################
-# MODELOS DE USUARIOS
-########################################################
+# ============================================================================
+# MANAGERS PERSONALIZADOS
+# ============================================================================
 
-class PreRegisterUser(AuditModel):
-    """
-    Modelo para usuarios que se registran pero no han sido aprobados.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
-    phone_number = models.CharField(
-        validators=[phone_regex], 
-        max_length=17, 
-        unique=True,
-        verbose_name="Número telefónico",
-        db_index=True
-    )
-    age = models.PositiveIntegerField()
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    privacy_policy_accepted = models.BooleanField(default=False)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES.choices, default=STATUS_CHOICES.PENDING)
+class AdminUserManager(BaseUserManager):
+    """Manager personalizado para el modelo AdminUser"""
+    
+    def create_user(self, username, password=None, **extra_fields):
+        """Crear y guardar un usuario administrador"""
+        if not username:
+            raise ValueError('El nombre de usuario es obligatorio')
+        
+        user = self.model(username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, username, password=None, **extra_fields):
+        """Crear y guardar un superusuario administrador"""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        return self.create_user(username, password, **extra_fields)
 
-    class Meta:
-        verbose_name = "Usuario pre-registro"
-        verbose_name_plural = "Usuarios pre-registro"
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.get_full_name()} ({self.phone_number})"
-    
-    def get_full_name(self):
-        """Retorna el nombre completo del usuario"""
-        return f"{self.first_name} {self.last_name}".strip()
-    
-    def get_short_name(self):
-        """Retorna el nombre corto del usuario"""
-        return self.first_name
+# ============================================================================
+# MODELOS DE ADMINISTRADORES
+# ============================================================================
 
-class CustomUser(AuditModel):
+class AdminUser(AbstractBaseUser, PermissionsMixin):
     """
-    Modelo de usuario personalizado para usuarios finales.
-    Utiliza número telefónico en lugar de username/email.
+    Modelo para usuarios administradores del backend.
+    Tienen acceso completo al sistema de administración.
     """
+    
     # Campos principales
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    phone_number = models.CharField(
-        validators=[phone_regex], 
-        max_length=17, 
+    username = models.CharField(
+        max_length=150, 
         unique=True,
-        verbose_name="Número telefónico",
-        db_index=True
+        verbose_name="Nombre de usuario"
     )
     
     # Información personal
     first_name = models.CharField(max_length=150, verbose_name="Nombre")
     last_name = models.CharField(max_length=150, verbose_name="Apellido")
-    age = models.PositiveIntegerField(verbose_name="Edad")
-    gender = models.CharField(
-        max_length=1, 
-        choices=GENDER_CHOICES, 
-        verbose_name="Género"
-    )
     
-    # Información socioeconómica
-    poverty_level = models.PositiveIntegerField(
-        validators=[MinValueValidator(5), MaxValueValidator(10)],
-        verbose_name="Nivel de pobreza (5-10)",
-        help_text="Pobreza extrema <= 6.5, Pobreza moderada <= 8.5, Fuera de riesgo <= 10"
+    # Campos de albergue (relación opcional para filtrado)
+    main_hostel = models.ForeignKey(
+        'albergues.Hostel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Albergue principal"
     )
     
     # Campos de estado
+    is_active = models.BooleanField(default=True, verbose_name="Usuario activo")
+    is_staff = models.BooleanField(default=True, verbose_name="Es staff")
+    is_superuser = models.BooleanField(default=False, verbose_name="Es superusuario")
+    
+    # Campos de auditoría
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Creado en")
+    updated_at = models.DateTimeField(default=timezone.now, verbose_name="Actualizado en")
+    last_login = models.DateTimeField(blank=True, null=True, verbose_name="Último acceso")
+    
+    objects = AdminUserManager()
+    
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+    
+    class Meta:
+        verbose_name = "Administrador"
+        verbose_name_plural = "Administradores"
+        ordering = ['-last_login', '-created_at']
+    
+    def __str__(self):
+        return f"{self.get_full_name()} ({self.username})"
+    
+    def get_full_name(self):
+        """Retorna el nombre completo del administrador"""
+        return f"{self.first_name} {self.last_name}".strip()
+    
+    def get_short_name(self):
+        """Retorna el nombre corto del administrador"""
+        return self.first_name
+
+# ============================================================================
+# MODELOS DE PRE-REGISTRO
+# ============================================================================
+
+class PreRegisterUser(AuditModel):
+    """
+    Modelo para usuarios que solicitan pre-registro.
+    Requieren aprobación de administrador antes de convertirse en CustomUser.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Información básica
+    first_name = models.CharField(max_length=150, verbose_name="Nombre")
+    last_name = models.CharField(max_length=150, verbose_name="Apellido")
+    phone_number = models.CharField(
+        max_length=17,
+        unique=True,
+        validators=[phone_regex],
+        verbose_name="Número de teléfono"
+    )
+    age = models.PositiveIntegerField(verbose_name="Edad")
+    gender = models.CharField(
+        max_length=1,
+        choices=GENDER_CHOICES.choices,
+        verbose_name="Género"
+    )
+    
+    # Estado y consentimiento
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES.choices,
+        default=STATUS_CHOICES.PENDING,
+        verbose_name="Estado"
+    )
+    privacy_policy_accepted = models.BooleanField(
+        default=False,
+        verbose_name="Política de privacidad aceptada"
+    )
+    
+    class Meta:
+        verbose_name = "Pre-registro de Usuario"
+        verbose_name_plural = "Pre-registros de Usuarios"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_full_name()} ({self.phone_number}) - {self.get_status_display()}"
+    
+    def get_full_name(self):
+        """Retorna el nombre completo del pre-usuario"""
+        return f"{self.first_name} {self.last_name}".strip()
+
+# ============================================================================
+# MODELOS DE USUARIOS FINALES
+# ============================================================================
+
+class CustomUser(AuditModel):
+    """
+    Modelo para usuarios finales del sistema.
+    Son creados por administradores después de aprobar pre-registros.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Información básica
+    first_name = models.CharField(max_length=150, verbose_name="Nombre")
+    last_name = models.CharField(max_length=150, verbose_name="Apellido")
+    phone_number = models.CharField(
+        max_length=17,
+        unique=True,
+        validators=[phone_regex],
+        verbose_name="Número de teléfono"
+    )
+    age = models.PositiveIntegerField(verbose_name="Edad")
+    gender = models.CharField(
+        max_length=1,
+        choices=GENDER_CHOICES.choices,
+        verbose_name="Género"
+    )
+    
+    # Información adicional
+    poverty_level = models.CharField(
+        max_length=20,
+        choices=POVERTY_LEVEL_CHOICES.choices,
+        default=POVERTY_LEVEL_CHOICES.LEVEL_1,
+        verbose_name="Nivel de pobreza"
+    )
+    
+    # Estado del usuario
     is_active = models.BooleanField(
         default=True,
-        verbose_name="Cuenta activa"
+        verbose_name="Usuario activo"
     )
-
+    
     # Campos de auditoría
     approved_at = models.DateTimeField(
         blank=True,
@@ -157,7 +254,7 @@ class CustomUser(AuditModel):
         verbose_name="Aprobado en"
     )
     approved_by = models.ForeignKey(
-        'users.AdminUser',
+        AdminUser,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -169,6 +266,10 @@ class CustomUser(AuditModel):
         verbose_name = "Usuario"
         verbose_name_plural = "Usuarios"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['is_active']),
+        ]
     
     def __str__(self):
         return f"{self.get_full_name()} ({self.phone_number})"
@@ -188,161 +289,69 @@ class CustomUser(AuditModel):
         self.approved_at = timezone.now()
         self.save()
 
-########################################################
-# MODELOS DE ADMINISTRADORES
-########################################################
-
-class AdminUserManager(BaseUserManager):
-    """Manager personalizado para el modelo AdminUser"""
-    
-    def create_user(self, username, password, **extra_fields):
-        """Crear y guardar un usuario administrador"""
-        if not username:
-            raise ValueError('El nombre de usuario es obligatorio')
-        
-        user = self.model(username=username, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-    
-    def create_superuser(self, username, password, **extra_fields):
-        """Crear y guardar un superusuario administrador"""
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-        
-        return self.create_user(username, password, **extra_fields)
-
-
-class AdminUser(AbstractBaseUser, PermissionsMixin):
-    """
-    Modelo para usuarios administradores del backend.
-    Tienen acceso completo al sistema de administración.
-    """
-    
-    # Campos principales
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(
-        max_length=150, 
-        unique=True,
-        verbose_name="Nombre de usuario"
-    )
-    
-    # Campos de albergue
-    """ ESTA RELACIÓN ES ÚNICAMENTE PARA FILTRADO RÁPIDO, NO PARA RESTRICCIÓN DE ACCESO """
-    main_hostel = models.OneToOneField(
-        'albergues.Hostel',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Albergue principal"
-    )
-    
-    # Información personal
-    first_name = models.CharField(max_length=150, verbose_name="Nombre")
-    last_name = models.CharField(max_length=150, verbose_name="Apellido")
-    
-    # Campos de estado
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="Usuario activo"
-    )
-    is_staff = models.BooleanField(
-        default=True,
-        verbose_name="Es staff"
-    )
-    is_superuser = models.BooleanField(
-        default=False,
-        verbose_name="Es superusuario"
-    )
-    
-    # Campos de auditoría
-    last_login = models.DateTimeField(blank=True, null=True, verbose_name="Último acceso")
-    
-    objects = AdminUserManager()
-    
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
-    
-    class Meta:
-        verbose_name = "Administrador"
-        verbose_name_plural = "Administradores"
-        ordering = ['-last_login']
-    
-    def __str__(self):
-        return f"{self.get_full_name()} ({self.username})"
-    
-    def get_full_name(self):
-        """Retorna el nombre completo del administrador"""
-        return f"{self.first_name} {self.last_name}".strip()
-    
-    def get_short_name(self):
-        """Retorna el nombre corto del administrador"""
-        return self.first_name
-
-    def get_last_login(self):
-        """Retorna el último acceso del administrador"""
-        return self.last_login
-
-########################################################
-# MODELOS DE CÓDIGOS DE VERIFICACIÓN OTP
-########################################################
+# ============================================================================
+# MODELOS DE CÓDIGOS OTP
+# ============================================================================
 
 class OTPCode(AuditModel):
     """
     Modelo para almacenar códigos de verificación OTP hasheados.
     """
-    class Purpose(models.TextChoices):
-        LOGIN = "login", "Login"
-        SIGNUP = "signup", "Signup"
-        PASSWORD_RESET = "password_reset", "Password reset"
-        PHONE_CHANGE = "phone_change", "Phone change"
-
-    class Channel(models.TextChoices):
-        SMS = "sms", "SMS"
-        WHATSAPP = "whatsapp", "Whatsapp"
-        EMAIL = "email", "Email"
-
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name="otps")
-    purpose = models.CharField(max_length=32, choices=Purpose.choices)
-    channel = models.CharField(max_length=16, choices=Channel.choices)
-    hashed_code = models.CharField(max_length=255)
-    expires_at = models.DateTimeField(db_index=True)
-    consumed_at = models.DateTimeField(null=True, blank=True)
-    attempts = models.PositiveSmallIntegerField(default=0)
-    max_attempts = models.PositiveSmallIntegerField(default=5)
-    meta_ip = models.GenericIPAddressField(null=True, blank=True)
-    meta_ua = models.TextField(blank=True)
-
+    phone_number = models.CharField(
+        max_length=17,
+        validators=[phone_regex],
+        verbose_name="Número de teléfono"
+    )
+    hashed_code = models.CharField(
+        max_length=255,
+        verbose_name="Código hasheado"
+    )
+    is_used = models.BooleanField(
+        default=False,
+        verbose_name="Código usado"
+    )
+    expires_at = models.DateTimeField(
+        verbose_name="Expira en"
+    )
+    
+    # Campos de seguimiento
+    attempts = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Intentos"
+    )
+    max_attempts = models.PositiveIntegerField(
+        default=3,
+        verbose_name="Máximo de intentos"
+    )
+    
     class Meta:
-        verbose_name = "Código de verificación OTP"
-        verbose_name_plural = "Códigos de verificación OTP"
+        verbose_name = "Código OTP"
+        verbose_name_plural = "Códigos OTP"
         ordering = ['-created_at']
-        constraints = [
-            # Al menos uno activo por user+purpose
-            models.UniqueConstraint(
-                fields=['user', 'purpose'],
-                condition=Q(consumed_at__isnull=True),
-                name='uniq_active_otp_per_user_purpose',
-            ),
-            models.CheckConstraint(check=Q(max_attempts__gte=1), name='otp_max_attempts_gte_1'),
-        ]
         indexes = [
-            Index(fields=['user', 'purpose']),
-            Index(fields=['user', 'purpose', 'expires_at']),
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['expires_at']),
         ]
-
+    
     def __str__(self):
-        return f"OTP {self.purpose} → {self.user.get_full_name()} ({self.user.phone_number}) exp={self.expires_at.isoformat()}"
-
+        return f"OTP para {self.phone_number} - {'Usado' if self.is_used else 'Activo'}"
+    
     def is_expired(self):
+        """Verifica si el código ha expirado"""
         return timezone.now() > self.expires_at
-
-    def is_valid(self):
-        return (self.consumed_at is None) and (not self.is_expired()) and (self.attempts < self.max_attempts)
+    
+    def can_attempt(self):
+        """Verifica si aún se pueden hacer intentos"""
+        return self.attempts < self.max_attempts
+    
+    def increment_attempts(self):
+        """Incrementa el contador de intentos"""
+        self.attempts += 1
+        self.save()
+    
+    def mark_as_used(self):
+        """Marca el código como usado"""
+        self.is_used = True
+        self.save()
