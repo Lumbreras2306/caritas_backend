@@ -3,18 +3,20 @@ from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+from .models import CustomUserToken
 from rest_framework.authtoken.views import ObtainAuthToken
 from django_filters.rest_framework import DjangoFilterBackend
-from django.contrib.auth import login, logout
 from django.utils import timezone
 from django.db import transaction
 
-from .models import CustomUser, PreRegisterUser, AdminUser, OTPCode, STATUS_CHOICES
+from .models import CustomUser, PreRegisterUser, AdminUser, STATUS_CHOICES
 from .serializers import (
     CustomUserSerializer, PreRegisterUserSerializer, AdminUserSerializer,
-    OTPCodeSerializer, OTPCodeVerifySerializer, AdminUserLoginSerializer,
-    AdminUserPasswordChangeSerializer, PreRegisterVerificationSerializer
+    AdminUserLoginSerializer, AdminUserPasswordChangeSerializer, 
+    PreRegisterVerificationSerializer, PhoneVerificationSendSerializer,
+    PhoneVerificationCheckSerializer
 )
+from .twilio_verify_service import twilio_verify_service
 
 # ============================================================================
 # VIEWSETS PARA USUARIOS PRE-REGISTRO
@@ -284,62 +286,97 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 # VIEWSETS PARA CÓDIGOS OTP
 # ============================================================================
 
-class OTPCodeViewSet(viewsets.ModelViewSet):
+class PhoneVerificationViewSet(viewsets.ViewSet):
     """
-    ViewSet para gestión de códigos OTP.
+    ViewSet para verificación de números de teléfono usando Twilio Verify.
     
     Endpoints:
-    - GET /api/users/otp-codes/ - Lista códigos OTP
-    - POST /api/users/otp-codes/ - Crear nuevo código OTP
-    - GET /api/users/otp-codes/{id}/ - Detalle de código OTP
-    - POST /api/users/otp-codes/verify/ - Verificar código OTP
+    - POST /api/users/phone-verification/send/ - Enviar código de verificación SMS
+    - POST /api/users/phone-verification/verify/ - Verificar código SMS y obtener token
     """
-    queryset = OTPCode.objects.all()
-    serializer_class = OTPCodeSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['purpose', 'channel', 'user']
-    search_fields = ['user__first_name', 'user__last_name', 'user__phone_number']
-    ordering_fields = ['created_at', 'expires_at']
-    ordering = ['-created_at']
+    permission_classes = [permissions.AllowAny]  # Permitir acceso sin autenticación para estos endpoints
 
-    def get_queryset(self):
+    @action(detail=False, methods=['post'])
+    def send(self, request):
         """
-        Los administradores ven todos, los usuarios solo los suyos.
+        Enviar código de verificación SMS usando Twilio Verify.
+        
+        POST /api/users/phone-verification/send/
+        Body: {"phone_number": "+52 1234567890"}
         """
-        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
-            return OTPCode.objects.all()
+        serializer = PhoneVerificationSendSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            phone_number = serializer.validated_data['phone_number']
+            
+            # Enviar verificación usando Twilio Verify
+            result = twilio_verify_service.send_verification(phone_number)
+            
+            if result['success']:
+                return Response({
+                    'message': 'Código de verificación enviado exitosamente',
+                    'phone_number': phone_number,
+                    'verification_sid': result['verification_sid']
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'message': 'Error al enviar el código de verificación',
+                    'error': result['error']
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            # Para usuarios finales, solo sus códigos
-            return OTPCode.objects.filter(user=self.request.user)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'])
     def verify(self, request):
         """
-        Verificar un código OTP.
+        Verificar código SMS y retornar token de autenticación.
         
-        POST /api/users/otp-codes/verify/
+        POST /api/users/phone-verification/verify/
         Body: {
-            "code": "123456",
-            "purpose": "login"
+            "phone_number": "+52 1234567890",
+            "code": "123456"
         }
         """
-        serializer = OTPCodeVerifySerializer(
-            data=request.data, 
-            context={'user': request.user}
-        )
+        serializer = PhoneVerificationCheckSerializer(data=request.data)
         
         if serializer.is_valid():
-            otp = serializer.validated_data['otp']
+            phone_number = serializer.validated_data['phone_number']
+            code = serializer.validated_data['code']
             
-            # Marcar como consumido
-            otp.consumed_at = timezone.now()
-            otp.save()
+            # Verificar código usando Twilio Verify
+            result = twilio_verify_service.check_verification(phone_number, code)
             
-            return Response({
-                'message': 'Código OTP verificado exitosamente',
-                'verified': True
-            }, status=status.HTTP_200_OK)
+            if result['success']:
+                # Buscar el usuario por número de teléfono
+                try:
+                    user = CustomUser.objects.get(phone_number=phone_number)
+                    
+                    # Crear o obtener token de autenticación personalizado para CustomUser
+                    token, created = CustomUserToken.objects.get_or_create(user=user)
+                    
+                    return Response({
+                        'message': 'Código verificado exitosamente',
+                        'token': token.key,
+                        'user': {
+                            'id': user.id,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                            'phone_number': user.phone_number,
+                            'is_active': user.is_active,
+                            'approved_at': user.approved_at.isoformat() if user.approved_at else None
+                        }
+                    }, status=status.HTTP_200_OK)
+                    
+                except CustomUser.DoesNotExist:
+                    return Response({
+                        'message': 'No existe un usuario con este número de teléfono',
+                        'error': 'USER_NOT_FOUND'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({
+                    'message': 'Código de verificación inválido',
+                    'error': result['error']
+                }, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

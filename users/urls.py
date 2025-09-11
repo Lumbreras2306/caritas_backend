@@ -7,9 +7,9 @@ from .views import (
     PreRegisterUserViewSet,
     CustomUserViewSet,
     AdminUserViewSet,
-    OTPCodeViewSet,
+    PhoneVerificationViewSet,
     AdminUserLoginView,
-    AdminUserLogoutView
+    AdminUserLogoutView,
 )
 
 # ============================================================================
@@ -23,7 +23,7 @@ router = DefaultRouter()
 router.register(r'pre-register', PreRegisterUserViewSet, basename='preregisteruser')
 router.register(r'customers', CustomUserViewSet, basename='customuser')
 router.register(r'admins', AdminUserViewSet, basename='adminuser')
-router.register(r'otp-codes', OTPCodeViewSet, basename='otpcode')
+router.register(r'phone-verification', PhoneVerificationViewSet, basename='phoneverification')
 
 # ============================================================================
 # PATRONES DE URL
@@ -82,14 +82,15 @@ Administradores:
 - DELETE /api/users/admins/{id}/                     - Eliminar administrador
 - POST   /api/users/admins/change-password/          - Cambiar contraseña
 
-Códigos OTP:
-- GET    /api/users/otp-codes/                       - Lista códigos OTP
-- POST   /api/users/otp-codes/                       - Crear nuevo código OTP
-- GET    /api/users/otp-codes/{id}/                  - Detalle de código OTP
-- PUT    /api/users/otp-codes/{id}/                  - Actualizar código OTP completo
-- PATCH  /api/users/otp-codes/{id}/                  - Actualizar código OTP parcial
-- DELETE /api/users/otp-codes/{id}/                  - Eliminar código OTP
-- POST   /api/users/otp-codes/verify/                - Verificar código OTP
+Verificación de Teléfono:
+- GET    /api/users/phone-verification/              - Lista verificaciones de teléfono
+- POST   /api/users/phone-verification/              - Crear nueva verificación
+- GET    /api/users/phone-verification/{id}/         - Detalle de verificación
+- PUT    /api/users/phone-verification/{id}/         - Actualizar verificación completa
+- PATCH  /api/users/phone-verification/{id}/         - Actualizar verificación parcial
+- DELETE /api/users/phone-verification/{id}/         - Eliminar verificación
+- POST   /api/users/phone-verification/send/         - Enviar código de verificación
+- POST   /api/users/phone-verification/verify/       - Verificar código
 
 Autenticación:
 - POST   /api/users/auth/admin-login/                - Login de administradores
@@ -113,7 +114,7 @@ Administradores:
 - Búsqueda: ?search=admin (busca en username, nombre, apellido)
 - Ordenamiento: ?ordering=-last_login (por último acceso desc)
 
-Códigos OTP:
+Verificación de Teléfono:
 - Filtros: ?purpose=login&channel=sms&user={uuid}
 - Búsqueda: ?search=Juan (busca en datos del usuario)
 - Ordenamiento: ?ordering=-expires_at (por expiración desc)

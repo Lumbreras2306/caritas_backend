@@ -5,6 +5,7 @@ from django.urls import path, include, re_path
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import redirect
 from django.conf import settings
+from django.contrib import admin
 from rest_framework import permissions
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 import os
@@ -97,6 +98,9 @@ def custom_schema_view(request):
         return HttpResponse("Archivo de esquema no encontrado", status=404)
 
 urlpatterns = [    
+    # Panel de administración de Django
+    path('admin/', admin.site.urls),
+    
     # Endpoint principal de documentación
     path('', documentation_view, name='documentation'),
     path('api/documentation/', documentation_view, name='api-documentation'),

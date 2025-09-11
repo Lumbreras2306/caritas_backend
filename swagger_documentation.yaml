@@ -454,6 +454,87 @@ paths:
         '400':
           description: Credenciales inválidas
 
+  /api/users/phone-verification/send/:
+    post:
+      tags: [Usuarios]
+      summary: Enviar código de verificación SMS
+      description: Envía un código de verificación SMS usando Twilio Verify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number]
+              properties:
+                phone_number:
+                  type: string
+                  description: Número de teléfono a verificar
+                  example: "+52 1234567890"
+      responses:
+        '200':
+          description: Código enviado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación
+                  phone_number:
+                    type: string
+                    description: Número de teléfono verificado
+                  verification_sid:
+                    type: string
+                    description: ID de verificación de Twilio
+        '400':
+          description: Datos inválidos
+        '500':
+          description: Error del servidor
+
+  /api/users/phone-verification/verify/:
+    post:
+      tags: [Usuarios]
+      summary: Verificar código SMS
+      description: Verifica el código SMS y retorna token de autenticación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number, code]
+              properties:
+                phone_number:
+                  type: string
+                  description: Número de teléfono
+                  example: "+52 1234567890"
+                code:
+                  type: string
+                  description: Código de verificación recibido por SMS
+                  example: "123456"
+      responses:
+        '200':
+          description: Verificación exitosa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación
+                  token:
+                    type: string
+                    description: Token de autenticación
+                  user:
+                    $ref: '#/components/schemas/CustomUser'
+        '400':
+          description: Código inválido o datos incorrectos
+        '500':
+          description: Error del servidor
+
   # ========================================================================
   # MÓDULO DE ALBERGUES
   # ========================================================================

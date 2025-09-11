@@ -1,5 +1,6 @@
 # models.py
 import uuid
+import re
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
@@ -10,10 +11,43 @@ from django.core.validators import RegexValidator
 # VALIDADORES Y CHOICES
 # ============================================================================
 
+# Patrón regex para números de teléfono internacionales (requiere +código)
+PHONE_REGEX_PATTERN = r'^\+\d{10,15}$'
+
 phone_regex = RegexValidator(
-    regex=r'^\+?1?\d{9,15}$',
-    message="El número de teléfono debe estar en formato: '+999999999'. Máximo 15 dígitos."
+    regex=PHONE_REGEX_PATTERN,
+    message="El número de teléfono debe estar en formato internacional con código de país: '+521234567890'. Ejemplo: +52811908593"
 )
+
+def validate_phone_number(value):
+    """
+    Función de validación personalizada para números de teléfono.
+    REQUIERE formato internacional con código de país: +52XXXXXXXXXX
+    """
+    if not value:
+        return False
+    
+    # Limpiar espacios y caracteres especiales excepto el +
+    cleaned = re.sub(r'[^\d+]', '', value)
+    
+    # DEBE empezar con + (formato internacional obligatorio)
+    if not cleaned.startswith('+'):
+        return False
+    
+    # Verificar que solo contenga + seguido de dígitos
+    if not re.match(r'^\+\d+$', cleaned):
+        return False
+    
+    # Verificar longitud (mínimo 11, máximo 16 dígitos incluyendo el +)
+    if len(cleaned) < 11 or len(cleaned) > 16:
+        return False
+    
+    # Verificar que el código de país tenga al menos 1 dígito y el número tenga al menos 10
+    digits_only = cleaned[1:]  # Quitar el +
+    if len(digits_only) < 11:  # Código de país (1-3) + número (10)
+        return False
+    
+    return True
 
 class STATUS_CHOICES(models.TextChoices):
     PENDING = 'PENDING', 'Pendiente'
@@ -290,68 +324,39 @@ class CustomUser(AuditModel):
         self.save()
 
 # ============================================================================
-# MODELOS DE CÓDIGOS OTP
+# MODELO DE TOKEN PARA CUSTOMUSER (COMPATIBLE CON DRF)
 # ============================================================================
 
-class OTPCode(AuditModel):
+class CustomUserToken(models.Model):
     """
-    Modelo para almacenar códigos de verificación OTP hasheados.
+    Token para usuarios finales (CustomUser) compatible con DRF.
+    Usa el mismo patrón que rest_framework.authtoken.models.Token.
     """
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    phone_number = models.CharField(
-        max_length=17,
-        validators=[phone_regex],
-        verbose_name="Número de teléfono"
+    key = models.CharField(max_length=40, primary_key=True, verbose_name="Clave del token")
+    user = models.OneToOneField(
+        CustomUser, 
+        on_delete=models.CASCADE, 
+        related_name='auth_token',
+        verbose_name="Usuario"
     )
-    hashed_code = models.CharField(
-        max_length=255,
-        verbose_name="Código hasheado"
-    )
-    is_used = models.BooleanField(
-        default=False,
-        verbose_name="Código usado"
-    )
-    expires_at = models.DateTimeField(
-        verbose_name="Expira en"
-    )
-    
-    # Campos de seguimiento
-    attempts = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Intentos"
-    )
-    max_attempts = models.PositiveIntegerField(
-        default=3,
-        verbose_name="Máximo de intentos"
-    )
+    created = models.DateTimeField(auto_now_add=True, verbose_name="Creado")
     
     class Meta:
-        verbose_name = "Código OTP"
-        verbose_name_plural = "Códigos OTP"
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['phone_number']),
-            models.Index(fields=['expires_at']),
-        ]
+        verbose_name = "Token de Usuario"
+        verbose_name_plural = "Tokens de Usuarios"
+    
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self.generate_key()
+        return super().save(*args, **kwargs)
+    
+    def generate_key(self):
+        """Genera una clave de token única de 40 caracteres"""
+        import secrets
+        import hashlib
+        # Generar un token de 40 caracteres exactos
+        raw_token = secrets.token_urlsafe(32)
+        return hashlib.sha256(raw_token.encode()).hexdigest()[:40]
     
     def __str__(self):
-        return f"OTP para {self.phone_number} - {'Usado' if self.is_used else 'Activo'}"
-    
-    def is_expired(self):
-        """Verifica si el código ha expirado"""
-        return timezone.now() > self.expires_at
-    
-    def can_attempt(self):
-        """Verifica si aún se pueden hacer intentos"""
-        return self.attempts < self.max_attempts
-    
-    def increment_attempts(self):
-        """Incrementa el contador de intentos"""
-        self.attempts += 1
-        self.save()
-    
-    def mark_as_used(self):
-        """Marca el código como usado"""
-        self.is_used = True
-        self.save()
+        return f"Token para {self.user.get_full_name()}"

@@ -3,8 +3,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 
 from .models import (
-    CustomUser, PreRegisterUser, AdminUser, OTPCode, 
-    STATUS_CHOICES, phone_regex
+    CustomUser, PreRegisterUser, AdminUser, 
+    STATUS_CHOICES, phone_regex, validate_phone_number
 )
 
 # ============================================================================
@@ -24,8 +24,8 @@ class PreRegisterUserSerializer(serializers.ModelSerializer):
     
     def validate_phone_number(self, value):
         """Validar número de teléfono"""
-        if not phone_regex.match(value):
-            raise serializers.ValidationError("El número de teléfono no es válido")
+        if not validate_phone_number(value):
+            raise serializers.ValidationError("El número de teléfono debe estar en formato internacional con código de país. Ejemplo: +52811908593")
         return value
     
     def validate_age(self, value):
@@ -59,7 +59,7 @@ class PreRegisterVerificationSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=17, validators=[phone_regex])
     
     def validate_phone_number(self, value):
-        if not phone_regex.match(value):
+        if not validate_phone_number(value):
             raise serializers.ValidationError("El número de teléfono no es válido")
         return value
 
@@ -84,8 +84,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
     
     def validate_phone_number(self, value):
         """Validar número de teléfono"""
-        if not phone_regex.match(value):
-            raise serializers.ValidationError("El número de teléfono no es válido")
+        if not validate_phone_number(value):
+            raise serializers.ValidationError("El número de teléfono debe estar en formato internacional con código de país. Ejemplo: +52811908593")
         return value
     
     def validate_age(self, value):
@@ -216,28 +216,31 @@ class AdminUserPasswordChangeSerializer(serializers.Serializer):
         return user
 
 # ============================================================================
-# SERIALIZERS PARA CÓDIGOS OTP
+# SERIALIZERS PARA VERIFICACIÓN CON TWILIO VERIFY
 # ============================================================================
 
-class OTPCodeSerializer(serializers.ModelSerializer):
-    """Serializer básico para OTPCode"""
+class PhoneVerificationSendSerializer(serializers.Serializer):
+    """Serializer para enviar código de verificación SMS"""
+    phone_number = serializers.CharField(max_length=17, validators=[phone_regex])
     
-    class Meta:
-        model = OTPCode
-        fields = [
-            'id', 'phone_number', 'is_used', 'expires_at',
-            'attempts', 'max_attempts', 'created_at'
-        ]
-        read_only_fields = ['id', 'created_at']
+    def validate_phone_number(self, value):
+        if not validate_phone_number(value):
+            raise serializers.ValidationError("El número de teléfono debe estar en formato internacional con código de país. Ejemplo: +52811908593")
+        
+        # Verificar que existe un usuario con este número de teléfono
+        if not CustomUser.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("No existe un usuario con este número de teléfono")
+        
+        return value
 
-class OTPCodeVerifySerializer(serializers.Serializer):
-    """Serializer para verificar código OTP"""
+class PhoneVerificationCheckSerializer(serializers.Serializer):
+    """Serializer para verificar código SMS con Twilio Verify"""
     phone_number = serializers.CharField(max_length=17, validators=[phone_regex])
     code = serializers.CharField(max_length=6, min_length=6)
     
     def validate_phone_number(self, value):
-        if not phone_regex.match(value):
-            raise serializers.ValidationError("El número de teléfono no es válido")
+        if not validate_phone_number(value):
+            raise serializers.ValidationError("El número de teléfono debe estar en formato internacional con código de país. Ejemplo: +52811908593")
         return value
     
     def validate_code(self, value):

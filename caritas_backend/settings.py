@@ -21,6 +21,20 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 # ============================================================================
+# CONFIGURACIÓN DE TWILIO VERIFY
+# ============================================================================
+
+# Twilio Configuration - Usando variables oficiales
+# Variables de entorno requeridas:
+# TWILIO_ACCOUNT_SID=SID (Tu Account SID de Twilio)
+# TWILIO_AUTH_TOKEN=TOKEN (Tu Auth Token de Twilio)
+# TWILIO_VERIFY_SERVICE_SID=SERVICE_SID (Tu Verify Service SID)
+
+TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
+TWILIO_VERIFY_SERVICE_SID = config('TWILIO_VERIFY_SERVICE_SID', default='')
+
+# ============================================================================
 # DEFINICIÓN DE APLICACIONES
 # ============================================================================
 
@@ -200,7 +214,7 @@ CORS_ALLOWED_HEADERS = [
 REST_FRAMEWORK = {
     # Configuración de autenticación
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'users.authentication.CustomTokenAuthentication',  # Autenticación personalizada para ambos tipos de usuarios
         'rest_framework.authentication.SessionAuthentication',
     ],
     
@@ -252,7 +266,7 @@ SPECTACULAR_SETTINGS = {
     
     # Configuración de autenticación en Swagger
     'AUTHENTICATION_WHITELIST': [
-        'rest_framework.authentication.TokenAuthentication',
+        'users.authentication.CustomTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     
