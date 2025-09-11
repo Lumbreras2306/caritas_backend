@@ -1,14 +1,10 @@
 """
 URL configuration for caritas_backend project.
 """
-from django.urls import path, include, re_path
-from django.http import HttpResponse, FileResponse
-from django.shortcuts import redirect
-from django.conf import settings
+from django.urls import path, include
+from django.http import HttpResponse
 from django.contrib import admin
-from rest_framework import permissions
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
-import os
 
 def documentation_view(request):
     """Vista principal de documentación"""
@@ -29,11 +25,11 @@ def documentation_view(request):
             .container {
                 background: white; border-radius: 20px; padding: 40px;
                 box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-                text-align: center; max-width: 600px; width: 90%;
+                text-align: center; max-width: 700px; width: 90%;
             }
             h1 { color: #333; margin-bottom: 20px; font-size: 2.5em; }
             .description { color: #666; margin-bottom: 30px; line-height: 1.6; }
-            .buttons { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+            .buttons { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
             .btn {
                 padding: 15px 30px; border: none; border-radius: 10px;
                 text-decoration: none; font-weight: bold; font-size: 16px;
@@ -47,17 +43,26 @@ def documentation_view(request):
             .btn-info:hover { background: #138496; transform: translateY(-2px); }
             .features {
                 margin-top: 40px; text-align: left; background: #f8f9fa;
-                padding: 20px; border-radius: 10px;
+                padding: 25px; border-radius: 10px;
             }
             .features h3 { color: #333; margin-bottom: 15px; }
-            .features ul { color: #666; line-height: 1.8; }
+            .features ul { color: #666; line-height: 1.8; margin: 0; }
+            .stats {
+                display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 20px; margin-top: 30px;
+            }
+            .stat-card {
+                background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center;
+            }
+            .stat-number { font-size: 2em; font-weight: bold; color: #667eea; }
+            .stat-label { font-size: 0.9em; color: #666; }
         </style>
     </head>
     <body>
         <div class="container">
             <h1>🏠 API de Caritas</h1>
             <p class="description">
-                Sistema de Gestión de Albergues - Documentación completa de la API REST
+                Sistema de Gestión de Albergues - Documentación automática generada desde el código
             </p>
             
             <div class="buttons">
@@ -66,36 +71,48 @@ def documentation_view(request):
                 <a href="/api/schema/" class="btn btn-info">📄 API Schema</a>
             </div>
             
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">Módulos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">80+</div>
+                    <div class="stat-label">Endpoints</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Automático</div>
+                </div>
+            </div>
+            
             <div class="features">
                 <h3>🚀 Módulos de la API:</h3>
                 <ul>
-                    <li><strong>Usuarios:</strong> Pre-registros, administradores, autenticación</li>
+                    <li><strong>Usuarios:</strong> Pre-registros, administradores, autenticación con Twilio</li>
                     <li><strong>Albergues:</strong> Ubicaciones, albergues, reservas de alojamiento</li>
                     <li><strong>Servicios:</strong> Servicios, horarios, reservas de servicios</li>
                     <li><strong>Inventario:</strong> Artículos, inventarios, control de stock</li>
                 </ul>
+                
+                <h3>✨ Características:</h3>
+                <ul>
+                    <li><strong>Documentación automática:</strong> Siempre actualizada con el código</li>
+                    <li><strong>Autenticación dual:</strong> AdminUser y CustomUser con tokens</li>
+                    <li><strong>SMS con Twilio:</strong> Verificación de teléfonos</li>
+                    <li><strong>API REST completa:</strong> CRUD, filtros, búsqueda, paginación</li>
+                </ul>
             </div>
             
             <p style="margin-top: 30px; color: #999; font-size: 14px;">
-                Desarrollado con ❤️ para la organización Caritas
+                Desarrollado con ❤️ para la organización Caritas<br>
+                <strong>Documentación generada automáticamente por DRF Spectacular</strong>
             </p>
         </div>
     </body>
     </html>
     '''
     return HttpResponse(html_content, content_type='text/html')
-
-def custom_schema_view(request):
-    """Vista para servir el archivo YAML estático"""
-    yaml_path = os.path.join(settings.BASE_DIR, 'swagger_documentation.yaml')
-    if os.path.exists(yaml_path):
-        return FileResponse(
-            open(yaml_path, 'rb'),
-            content_type='application/x-yaml',
-            filename='swagger_documentation.yaml'
-        )
-    else:
-        return HttpResponse("Archivo de esquema no encontrado", status=404)
 
 urlpatterns = [    
     # Panel de administración de Django
@@ -111,8 +128,8 @@ urlpatterns = [
     path('api/inventory/', include('inventory.urls')),
     path('api/services/', include('services.urls')),
     
-    # Swagger UI - usando el archivo YAML estático
-    path('api/schema/', custom_schema_view, name='schema'),
+    # Documentación automática con DRF Spectacular
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]

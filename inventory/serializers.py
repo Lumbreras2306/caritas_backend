@@ -1,5 +1,6 @@
 # serializers.py
 from rest_framework import serializers
+from typing import Dict, Any, Optional
 from .models import Item, Inventory, InventoryItem
 from albergues.models import Hostel
 
@@ -25,11 +26,11 @@ class ItemSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_total_inventories(self, obj):
+    def get_total_inventories(self, obj) -> int:
         """Retorna el número de inventarios que tienen este artículo"""
         return obj.inventory_items.filter(is_active=True).count()
     
-    def get_total_quantity_all_inventories(self, obj):
+    def get_total_quantity_all_inventories(self, obj) -> int:
         """Retorna la cantidad total de este artículo en todos los inventarios"""
         return sum(
             item.quantity for item in obj.inventory_items.filter(is_active=True)
@@ -63,19 +64,19 @@ class InventorySerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_total_items(self, obj):
+    def get_total_items(self, obj) -> int:
         """Retorna el número total de artículos diferentes"""
         return obj.get_total_items()
     
-    def get_total_quantity(self, obj):
+    def get_total_quantity(self, obj) -> int:
         """Retorna la cantidad total de todos los artículos"""
         return obj.get_total_quantity()
     
-    def get_low_stock_count(self, obj):
+    def get_low_stock_count(self, obj) -> int:
         """Retorna el número de artículos con stock bajo"""
         return obj.get_low_stock_items().count()
     
-    def get_empty_stock_count(self, obj):
+    def get_empty_stock_count(self, obj) -> int:
         """Retorna el número de artículos sin stock"""
         return obj.get_empty_stock_items().count()
     
@@ -120,15 +121,15 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_stock_status(self, obj):
+    def get_stock_status(self, obj) -> str:
         """Retorna el estado del stock"""
         return obj.get_stock_status()
     
-    def get_is_low_stock(self, obj):
+    def get_is_low_stock(self, obj) -> bool:
         """Retorna si el stock está bajo"""
         return obj.is_low_stock()
     
-    def get_is_out_of_stock(self, obj):
+    def get_is_out_of_stock(self, obj) -> bool:
         """Retorna si no hay stock"""
         return obj.is_out_of_stock()
     
@@ -223,14 +224,14 @@ class InventoryItemDetailSerializer(serializers.ModelSerializer):
             'created_by_name', 'updated_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_stock_status(self, obj):
+    def get_stock_status(self, obj) -> str:
         """Retorna el estado del stock"""
         return obj.get_stock_status()
     
-    def get_is_low_stock(self, obj):
+    def get_is_low_stock(self, obj) -> bool:
         """Retorna si el stock está bajo"""
         return obj.is_low_stock()
     
-    def get_is_out_of_stock(self, obj):
+    def get_is_out_of_stock(self, obj) -> bool:
         """Retorna si no hay stock"""
         return obj.is_out_of_stock()

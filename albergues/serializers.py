@@ -1,5 +1,6 @@
 # serializers.py
 from rest_framework import serializers
+from typing import Dict, Any, Tuple
 from .models import Location, Hostel, HostelReservation
 
 # ============================================================================
@@ -22,15 +23,15 @@ class LocationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'coordinates', 'google_maps_url', 'formatted_address', 'created_at', 'updated_at']
     
-    def get_coordinates(self, obj):
+    def get_coordinates(self, obj) -> Tuple[float, float]:
         """Retorna las coordenadas como tupla"""
         return obj.get_coordinates()
     
-    def get_google_maps_url(self, obj):
+    def get_google_maps_url(self, obj) -> str:
         """Retorna URL de Google Maps"""
         return obj.get_google_maps_url()
     
-    def get_formatted_address(self, obj):
+    def get_formatted_address(self, obj) -> str:
         """Retorna dirección formateada"""
         return obj.get_formatted_address()
 
@@ -58,17 +59,17 @@ class HostelSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_total_capacity(self, obj):
+    def get_total_capacity(self, obj) -> int:
         """Retorna la capacidad total del albergue"""
         men_cap = obj.men_capacity or 0
         women_cap = obj.women_capacity or 0
         return men_cap + women_cap
     
-    def get_coordinates(self, obj):
+    def get_coordinates(self, obj) -> Tuple[float, float]:
         """Retorna las coordenadas del albergue"""
         return obj.get_coordinates()
     
-    def get_formatted_address(self, obj):
+    def get_formatted_address(self, obj) -> str:
         """Retorna dirección formateada del albergue"""
         return obj.get_formatted_address()
     
@@ -141,7 +142,7 @@ class HostelReservationSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_total_people(self, obj):
+    def get_total_people(self, obj) -> int:
         """Retorna el total de personas en la reserva"""
         men = obj.men_quantity or 0
         women = obj.women_quantity or 0
@@ -189,3 +190,20 @@ class HostelReservationUpdateSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
+
+class BulkStatusUpdateSerializer(serializers.Serializer):
+    """Serializer para actualización masiva de estados de reservas"""
+    reservation_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="Lista de IDs de reservas a actualizar"
+    )
+    status = serializers.ChoiceField(
+        choices=HostelReservation.ReservationStatus.choices,
+        help_text="Nuevo estado para las reservas"
+    )
+    
+    def validate_reservation_ids(self, value):
+        """Validar que la lista no esté vacía"""
+        if not value:
+            raise serializers.ValidationError("La lista de IDs no puede estar vacía")
+        return value

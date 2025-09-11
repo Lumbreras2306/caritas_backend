@@ -247,3 +247,29 @@ class PhoneVerificationCheckSerializer(serializers.Serializer):
         if not value.isdigit():
             raise serializers.ValidationError("El código debe contener solo números")
         return value
+
+class BulkPreRegisterApprovalSerializer(serializers.Serializer):
+    """Serializer para aprobación masiva de pre-registros"""
+    pre_register_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="Lista de IDs de pre-registros a aprobar"
+    )
+    
+    def validate_pre_register_ids(self, value):
+        """Validar que la lista no esté vacía"""
+        if not value:
+            raise serializers.ValidationError("La lista de IDs no puede estar vacía")
+        return value
+
+class BulkUserDeactivationSerializer(serializers.Serializer):
+    """Serializer para desactivación masiva de usuarios"""
+    user_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="Lista de IDs de usuarios a desactivar"
+    )
+    
+    def validate_user_ids(self, value):
+        """Validar que la lista no esté vacía"""
+        if not value:
+            raise serializers.ValidationError("La lista de IDs no puede estar vacía")
+        return value

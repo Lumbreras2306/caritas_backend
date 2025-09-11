@@ -9,12 +9,17 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db import transaction
 
+# DRF Spectacular imports para documentación automática
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
+
 from .models import CustomUser, PreRegisterUser, AdminUser, STATUS_CHOICES
 from .serializers import (
     CustomUserSerializer, PreRegisterUserSerializer, AdminUserSerializer,
     AdminUserLoginSerializer, AdminUserPasswordChangeSerializer, 
     PreRegisterVerificationSerializer, PhoneVerificationSendSerializer,
-    PhoneVerificationCheckSerializer
+    PhoneVerificationCheckSerializer, BulkPreRegisterApprovalSerializer,
+    BulkUserDeactivationSerializer
 )
 from .twilio_verify_service import twilio_verify_service
 
@@ -22,18 +27,46 @@ from .twilio_verify_service import twilio_verify_service
 # VIEWSETS PARA USUARIOS PRE-REGISTRO
 # ============================================================================
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Pre-Register Users'],
+        summary="Lista pre-registros",
+        description="Obtiene lista paginada de pre-registros de usuarios con filtros y búsqueda",
+        parameters=[
+            OpenApiParameter(name='status', type=OpenApiTypes.STR, enum=['PENDING', 'APPROVED', 'REJECTED']),
+            OpenApiParameter(name='gender', type=OpenApiTypes.STR, enum=['M', 'F']),
+            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre, apellido, teléfono'),
+        ]
+    ),
+    create=extend_schema(
+        tags=['Pre-Register Users'],
+        summary="Crear pre-registro",
+        description="Crea un nuevo pre-registro de usuario. No requiere autenticación.",
+        examples=[
+            OpenApiExample(
+                'Pre-registro ejemplo',
+                value={
+                    "first_name": "Juan",
+                    "last_name": "Pérez",
+                    "phone_number": "+52811908593",
+                    "age": 25,
+                    "gender": "M",
+                    "privacy_policy_accepted": True
+                }
+            )
+        ]
+    ),
+    retrieve=extend_schema(tags=['Pre-Register Users'], summary="Detalle de pre-registro"),
+    update=extend_schema(tags=['Pre-Register Users'], summary="Actualizar pre-registro"),
+    partial_update=extend_schema(tags=['Pre-Register Users'], summary="Actualizar pre-registro parcial"),
+    destroy=extend_schema(tags=['Pre-Register Users'], summary="Eliminar pre-registro"),
+)
 class PreRegisterUserViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestión de usuarios pre-registro.
     
-    Endpoints:
-    - GET /api/users/pre-register/ - Lista todos los pre-registros
-    - POST /api/users/pre-register/ - Crear nuevo pre-registro
-    - GET /api/users/pre-register/{id}/ - Detalle de pre-registro
-    - PUT/PATCH /api/users/pre-register/{id}/ - Actualizar status
-    - DELETE /api/users/pre-register/{id}/ - Eliminar pre-registro
-    - POST /api/users/pre-register/verify-phone/ - Verificar si existe preregistro por teléfono
-    - POST /api/users/pre-register/approve/ - Aprobar múltiples pre-registros
+    Los pre-registros son solicitudes de usuarios que requieren aprobación
+    de un administrador antes de convertirse en usuarios activos del sistema.
     """
     queryset = PreRegisterUser.objects.all()
     serializer_class = PreRegisterUserSerializer
@@ -45,17 +78,10 @@ class PreRegisterUserViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_permissions(self):
-        """
-        Permisos personalizados por acción.
-        """
-        if self.action == 'create':
-            # Permitir creación sin autenticación (registro público)
-            permission_classes = [permissions.AllowAny]
-        elif self.action in ['verify_phone']:
-            # Permitir verificación sin autenticación
+        """Permisos personalizados por acción."""
+        if self.action in ['create', 'verify_phone']:
             permission_classes = [permissions.AllowAny]
         else:
-            # Requiere autenticación para otras acciones
             permission_classes = [permissions.IsAuthenticated]
         
         return [permission() for permission in permission_classes]
@@ -63,37 +89,41 @@ class PreRegisterUserViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Personalizar creación de pre-registro"""
         instance = serializer.save()
-        # Aquí podrías agregar lógica adicional como enviar notificaciones
         return instance
 
     def perform_update(self, serializer):
         """Personalizar actualización de pre-registro"""
         instance = serializer.save()
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
-            # Registrar quién modificó el registro
             instance.updated_by = self.request.user
             instance.save()
         return instance
 
+    @extend_schema(
+        tags=['Pre-Register Users'],
+        summary="Verificar teléfono",
+        description="Verifica si existe un pre-registro con el número telefónico proporcionado",
+        request=PreRegisterVerificationSerializer,
+        responses={
+            200: OpenApiResponse(description="Pre-registro encontrado"),
+            404: OpenApiResponse(description="No se encontró pre-registro"),
+        }
+    )
     @action(detail=False, methods=['post'])
     def verify_phone(self, request):
-        """
-        Verificar si existe un preregistro con el número telefónico proporcionado.
-        
-        POST /api/users/pre-register/verify-phone/
-        Body: {"phone_number": "+52 1234567890"}
-        """
+        """Verificar si existe un preregistro con el número telefónico proporcionado."""
         serializer = PreRegisterVerificationSerializer(data=request.data)
         if serializer.is_valid():
-            pre_register_data = serializer.get_pre_register_data()
+            phone_number = serializer.validated_data['phone_number']
             
-            if pre_register_data:
+            try:
+                pre_register = PreRegisterUser.objects.get(phone_number=phone_number)
                 return Response({
                     'exists': True,
-                    'data': pre_register_data,
+                    'data': PreRegisterUserSerializer(pre_register).data,
                     'message': 'Pre-registro encontrado'
                 }, status=status.HTTP_200_OK)
-            else:
+            except PreRegisterUser.DoesNotExist:
                 return Response({
                     'exists': False,
                     'data': None,
@@ -102,18 +132,19 @@ class PreRegisterUserViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        tags=['Pre-Register Users'],
+        summary="Aprobar múltiples pre-registros",
+        description="Aprueba múltiples pre-registros de forma masiva",
+        request=BulkPreRegisterApprovalSerializer
+    )
     @action(detail=False, methods=['post'])
-    def approve_multiple(self, request):
-        """
-        Aprobar múltiples pre-registros.
-        
-        POST /api/users/pre-register/approve/
-        Body: {"ids": ["uuid1", "uuid2", "uuid3"]}
-        """
-        ids = request.data.get('ids', [])
+    def approve(self, request):
+        """Aprobar múltiples pre-registros."""
+        ids = request.data.get('pre_register_ids', [])
         if not ids:
             return Response(
-                {'error': 'Se requiere una lista de IDs'}, 
+                {'error': 'Se requiere una lista de pre_register_ids'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -141,17 +172,28 @@ class PreRegisterUserViewSet(viewsets.ModelViewSet):
 # VIEWSETS PARA USUARIOS FINALES
 # ============================================================================
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Custom Users'],
+        summary="Lista usuarios finales",
+        description="Obtiene lista paginada de usuarios finales del sistema"
+    ),
+    create=extend_schema(
+        tags=['Custom Users'],
+        summary="Crear usuario final",
+        description="Crea un nuevo usuario final en el sistema"
+    ),
+    retrieve=extend_schema(tags=['Custom Users'], summary="Detalle de usuario final"),
+    update=extend_schema(tags=['Custom Users'], summary="Actualizar usuario final"),
+    partial_update=extend_schema(tags=['Custom Users'], summary="Actualizar usuario final parcial"),
+    destroy=extend_schema(tags=['Custom Users'], summary="Eliminar usuario final"),
+)
 class CustomUserViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestión de usuarios finales.
     
-    Endpoints:
-    - GET /api/users/customers/ - Lista todos los usuarios
-    - POST /api/users/customers/ - Crear nuevo usuario
-    - GET /api/users/customers/{id}/ - Detalle de usuario
-    - PUT/PATCH /api/users/customers/{id}/ - Actualizar usuario
-    - DELETE /api/users/customers/{id}/ - Eliminar usuario
-    - POST /api/users/customers/deactivate-multiple/ - Desactivar múltiples usuarios
+    Los usuarios finales son usuarios aprobados que pueden usar
+    los servicios del sistema como reservar alojamiento y servicios.
     """
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
@@ -176,18 +218,19 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         instance = serializer.save(updated_by=self.request.user)
         return instance
 
+    @extend_schema(
+        tags=['Custom Users'],
+        summary="Desactivar múltiples usuarios",
+        description="Desactiva múltiples usuarios de forma masiva",
+        request=BulkUserDeactivationSerializer
+    )
     @action(detail=False, methods=['post'])
     def deactivate_multiple(self, request):
-        """
-        Desactivar múltiples usuarios.
-        
-        POST /api/users/customers/deactivate-multiple/
-        Body: {"ids": ["uuid1", "uuid2", "uuid3"]}
-        """
-        ids = request.data.get('ids', [])
+        """Desactivar múltiples usuarios."""
+        ids = request.data.get('user_ids', [])
         if not ids:
             return Response(
-                {'error': 'Se requiere una lista de IDs'}, 
+                {'error': 'Se requiere una lista de user_ids'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -196,8 +239,6 @@ class CustomUserViewSet(viewsets.ModelViewSet):
                 users = CustomUser.objects.filter(id__in=ids)
                 updated_count = users.update(
                     is_active=False,
-                    deactivated_by=request.user,
-                    deactivated_at=timezone.now(),
                     updated_by=request.user,
                     updated_at=timezone.now()
                 )
@@ -217,17 +258,28 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 # VIEWSETS PARA ADMINISTRADORES
 # ============================================================================
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Admin Users'],
+        summary="Lista administradores",
+        description="Obtiene lista paginada de usuarios administradores"
+    ),
+    create=extend_schema(
+        tags=['Admin Users'],
+        summary="Crear administrador",
+        description="Crea un nuevo usuario administrador"
+    ),
+    retrieve=extend_schema(tags=['Admin Users'], summary="Detalle de administrador"),
+    update=extend_schema(tags=['Admin Users'], summary="Actualizar administrador"),
+    partial_update=extend_schema(tags=['Admin Users'], summary="Actualizar administrador parcial"),
+    destroy=extend_schema(tags=['Admin Users'], summary="Eliminar administrador"),
+)
 class AdminUserViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestión de usuarios administradores.
     
-    Endpoints:
-    - GET /api/users/admins/ - Lista todos los administradores
-    - POST /api/users/admins/ - Crear nuevo administrador
-    - GET /api/users/admins/{id}/ - Detalle de administrador
-    - PUT/PATCH /api/users/admins/{id}/ - Actualizar administrador
-    - DELETE /api/users/admins/{id}/ - Eliminar administrador
-    - POST /api/users/admins/change-password/ - Cambiar contraseña
+    Los administradores tienen acceso completo al sistema de gestión
+    y pueden crear/modificar usuarios, albergues, servicios, etc.
     """
     queryset = AdminUser.objects.all()
     serializer_class = AdminUserSerializer
@@ -238,34 +290,22 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'username', 'first_name', 'last_name', 'last_login']
     ordering = ['-created_at']
 
-    def get_permissions(self):
-        """
-        Solo superusuarios pueden gestionar administradores.
-        """
-        permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
-
     def get_queryset(self):
-        """
-        Los superusuarios ven todos, otros solo se ven a sí mismos.
-        """
+        """Los superusuarios ven todos, otros solo se ven a sí mismos."""
         if self.request.user.is_superuser:
             return AdminUser.objects.all()
         else:
             return AdminUser.objects.filter(id=self.request.user.id)
 
+    @extend_schema(
+        tags=['Admin Users'],
+        summary="Cambiar contraseña",
+        description="Cambia la contraseña del administrador actual",
+        request=AdminUserPasswordChangeSerializer
+    )
     @action(detail=False, methods=['post'])
     def change_password(self, request):
-        """
-        Cambiar contraseña del administrador actual.
-        
-        POST /api/users/admins/change-password/
-        Body: {
-            "old_password": "contraseña_actual",
-            "new_password": "nueva_contraseña",
-            "new_password_confirm": "nueva_contraseña"
-        }
-        """
+        """Cambiar contraseña del administrador actual."""
         serializer = AdminUserPasswordChangeSerializer(
             data=request.data, 
             context={'request': request}
@@ -283,33 +323,46 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ============================================================================
-# VIEWSETS PARA CÓDIGOS OTP
+# VIEWSETS PARA VERIFICACIÓN DE TELÉFONO
 # ============================================================================
 
+@extend_schema_view(
+    list=extend_schema(tags=['Phone Verification'], summary="Lista verificaciones (no disponible)"),
+    create=extend_schema(tags=['Phone Verification'], summary="Crear verificación (no disponible)"),
+)
 class PhoneVerificationViewSet(viewsets.ViewSet):
     """
     ViewSet para verificación de números de teléfono usando Twilio Verify.
     
-    Endpoints:
-    - POST /api/users/phone-verification/send/ - Enviar código de verificación SMS
-    - POST /api/users/phone-verification/verify/ - Verificar código SMS y obtener token
+    Permite enviar códigos SMS y verificarlos para autenticación
+    de usuarios finales del sistema.
     """
-    permission_classes = [permissions.AllowAny]  # Permitir acceso sin autenticación para estos endpoints
+    permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Phone Verification'],
+        summary="Enviar código SMS",
+        description="Envía un código de verificación SMS usando Twilio Verify",
+        request=PhoneVerificationSendSerializer,
+        responses={
+            200: OpenApiResponse(description="Código enviado exitosamente"),
+            500: OpenApiResponse(description="Error al enviar código"),
+        },
+        examples=[
+            OpenApiExample(
+                'Enviar código',
+                value={"phone_number": "+52811908593"}
+            )
+        ]
+    )
     @action(detail=False, methods=['post'])
     def send(self, request):
-        """
-        Enviar código de verificación SMS usando Twilio Verify.
-        
-        POST /api/users/phone-verification/send/
-        Body: {"phone_number": "+52 1234567890"}
-        """
+        """Enviar código de verificación SMS usando Twilio Verify."""
         serializer = PhoneVerificationSendSerializer(data=request.data)
         
         if serializer.is_valid():
             phone_number = serializer.validated_data['phone_number']
             
-            # Enviar verificación usando Twilio Verify
             result = twilio_verify_service.send_verification(phone_number)
             
             if result['success']:
@@ -326,32 +379,40 @@ class PhoneVerificationViewSet(viewsets.ViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        tags=['Phone Verification'],
+        summary="Verificar código SMS",
+        description="Verifica el código SMS y retorna token de autenticación",
+        request=PhoneVerificationCheckSerializer,
+        responses={
+            200: OpenApiResponse(description="Código verificado exitosamente, token generado"),
+            400: OpenApiResponse(description="Código inválido"),
+            404: OpenApiResponse(description="Usuario no encontrado"),
+        },
+        examples=[
+            OpenApiExample(
+                'Verificar código',
+                value={
+                    "phone_number": "+52811908593",
+                    "code": "123456"
+                }
+            )
+        ]
+    )
     @action(detail=False, methods=['post'])
     def verify(self, request):
-        """
-        Verificar código SMS y retornar token de autenticación.
-        
-        POST /api/users/phone-verification/verify/
-        Body: {
-            "phone_number": "+52 1234567890",
-            "code": "123456"
-        }
-        """
+        """Verificar código SMS y retornar token de autenticación."""
         serializer = PhoneVerificationCheckSerializer(data=request.data)
         
         if serializer.is_valid():
             phone_number = serializer.validated_data['phone_number']
             code = serializer.validated_data['code']
             
-            # Verificar código usando Twilio Verify
             result = twilio_verify_service.check_verification(phone_number, code)
             
             if result['success']:
-                # Buscar el usuario por número de teléfono
                 try:
                     user = CustomUser.objects.get(phone_number=phone_number)
-                    
-                    # Crear o obtener token de autenticación personalizado para CustomUser
                     token, created = CustomUserToken.objects.get_or_create(user=user)
                     
                     return Response({
@@ -388,14 +449,29 @@ class AdminUserLoginView(ObtainAuthToken):
     """
     Vista personalizada para login de administradores.
     
-    POST /api/users/auth/admin-login/
-    Body: {
-        "username": "admin",
-        "password": "password"
-    }
+    Autentica administradores y genera tokens para acceso a la API.
     """
     serializer_class = AdminUserLoginSerializer
 
+    @extend_schema(
+        tags=['Authentication'],
+        summary="Login de administrador",
+        description="Autentica un administrador y retorna token de acceso",
+        request=AdminUserLoginSerializer,
+        responses={
+            200: OpenApiResponse(description="Login exitoso"),
+            400: OpenApiResponse(description="Credenciales inválidas"),
+        },
+        examples=[
+            OpenApiExample(
+                'Login ejemplo',
+                value={
+                    "username": "admin",
+                    "password": "password123"
+                }
+            )
+        ]
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(
             data=request.data,
@@ -406,7 +482,6 @@ class AdminUserLoginView(ObtainAuthToken):
             user = serializer.validated_data['user']
             token, created = Token.objects.get_or_create(user=user)
             
-            # Actualizar último acceso
             user.last_login = timezone.now()
             user.save(update_fields=['last_login'])
             
@@ -421,21 +496,21 @@ class AdminUserLoginView(ObtainAuthToken):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema_view(
+    logout=extend_schema(
+        tags=['Authentication'],
+        summary="Logout de administrador",
+        description="Cierra la sesión de un administrador eliminando su token"
+    )
+)
 class AdminUserLogoutView(viewsets.GenericViewSet):
-    """
-    Vista para logout de administradores.
-    
-    POST /api/users/auth/admin-logout/
-    """
+    """Vista para logout de administradores."""
     permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=False, methods=['post'])
     def logout(self, request):
-        """
-        Cerrar sesión del administrador.
-        """
+        """Cerrar sesión del administrador."""
         try:
-            # Eliminar token
             request.user.auth_token.delete()
             return Response({
                 'message': 'Sesión cerrada exitosamente'

@@ -1,5 +1,6 @@
 # serializers.py
 from rest_framework import serializers
+from typing import Dict, Any, Optional
 from .models import Service, ServiceSchedule, HostelService, ReservationService
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -30,7 +31,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_max_time_hours(self, obj):
+    def get_max_time_hours(self, obj) -> Optional[str]:
         """Convertir minutos a horas para mejor legibilidad"""
         if obj.max_time:
             hours = obj.max_time // 60
@@ -43,11 +44,11 @@ class ServiceSerializer(serializers.ModelSerializer):
                 return f"{minutes}m"
         return None
     
-    def get_total_hostels(self, obj):
+    def get_total_hostels(self, obj) -> int:
         """Número de albergues que ofrecen este servicio"""
         return obj.hostelservice_set.filter(is_active=True).count()
     
-    def get_total_reservations(self, obj):
+    def get_total_reservations(self, obj) -> int:
         """Número total de reservas de este servicio"""
         return ReservationService.objects.filter(service__service=obj).count()
     
@@ -81,7 +82,7 @@ class ServiceScheduleSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_day_name(self, obj):
+    def get_day_name(self, obj) -> str:
         """Nombre del día de la semana"""
         days = {
             0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves',
@@ -89,7 +90,7 @@ class ServiceScheduleSerializer(serializers.ModelSerializer):
         }
         return days.get(obj.day_of_week, 'Desconocido')
     
-    def get_duration_hours(self, obj):
+    def get_duration_hours(self, obj) -> Optional[float]:
         """Duración del horario en horas"""
         if obj.start_time and obj.end_time:
             start_datetime = datetime.combine(datetime.today(), obj.start_time)
@@ -154,7 +155,7 @@ class HostelServiceSerializer(serializers.ModelSerializer):
             'total_reservations', 'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_total_reservations(self, obj):
+    def get_total_reservations(self, obj) -> int:
         """Número total de reservas para este servicio de albergue"""
         return obj.reservationservice_set.count()
 
@@ -194,24 +195,48 @@ class ReservationServiceSerializer(serializers.ModelSerializer):
             'created_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_total_people(self, obj):
+    def get_total_people(self, obj) -> int:
         """Total de personas en la reserva"""
         men = obj.men_quantity or 0
         women = obj.women_quantity or 0
         return men + women
     
-    def get_duration_minutes(self, obj):
+    def get_duration_minutes(self, obj) -> Optional[int]:
         """Duración de la reserva en minutos"""
         if obj.datetime_reserved and obj.end_datetime_reserved:
             duration = obj.end_datetime_reserved - obj.datetime_reserved
             return int(duration.total_seconds() / 60)
         return None
     
-    def get_is_expired(self, obj):
+    def get_is_expired(self, obj) -> bool:
         """Verificar si la reserva ya expiró"""
         if obj.end_datetime_reserved:
             return timezone.now() > obj.end_datetime_reserved
         return False
+
+class BulkServiceReservationStatusUpdateSerializer(serializers.Serializer):
+    """Serializer para actualización masiva de estados de reservas de servicios"""
+    reservation_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="Lista de IDs de reservas a actualizar"
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendiente'),
+            ('confirmed', 'Confirmada'),
+            ('cancelled', 'Cancelada'),
+            ('rejected', 'Rechazada'),
+            ('completed', 'Completada'),
+            ('in_progress', 'En Progreso'),
+        ],
+        help_text="Nuevo estado para las reservas"
+    )
+    
+    def validate_reservation_ids(self, value):
+        """Validar que la lista no esté vacía"""
+        if not value:
+            raise serializers.ValidationError("La lista de IDs no puede estar vacía")
+        return value
     
     def validate(self, attrs):
         """Validaciones para la reserva"""
@@ -280,7 +305,7 @@ class ReservationServiceDetailSerializer(serializers.ModelSerializer):
             'created_by_name', 'updated_by_name', 'created_at', 'updated_at'
         ]
     
-    def get_user_data(self, obj):
+    def get_user_data(self, obj) -> Dict[str, Any]:
         """Datos básicos del usuario"""
         return {
             'id': obj.user.id,
@@ -292,21 +317,45 @@ class ReservationServiceDetailSerializer(serializers.ModelSerializer):
             'username': obj.user.username,
         }
     
-    def get_total_people(self, obj):
+    def get_total_people(self, obj) -> int:
         """Total de personas en la reserva"""
         men = obj.men_quantity or 0
         women = obj.women_quantity or 0
         return men + women
     
-    def get_duration_minutes(self, obj):
+    def get_duration_minutes(self, obj) -> Optional[int]:
         """Duración de la reserva en minutos"""
         if obj.datetime_reserved and obj.end_datetime_reserved:
             duration = obj.end_datetime_reserved - obj.datetime_reserved
             return int(duration.total_seconds() / 60)
         return None
     
-    def get_is_expired(self, obj):
+    def get_is_expired(self, obj) -> bool:
         """Verificar si la reserva ya expiró"""
         if obj.end_datetime_reserved:
             return timezone.now() > obj.end_datetime_reserved
         return False
+
+class BulkServiceReservationStatusUpdateSerializer(serializers.Serializer):
+    """Serializer para actualización masiva de estados de reservas de servicios"""
+    reservation_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="Lista de IDs de reservas a actualizar"
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendiente'),
+            ('confirmed', 'Confirmada'),
+            ('cancelled', 'Cancelada'),
+            ('rejected', 'Rechazada'),
+            ('completed', 'Completada'),
+            ('in_progress', 'En Progreso'),
+        ],
+        help_text="Nuevo estado para las reservas"
+    )
+    
+    def validate_reservation_ids(self, value):
+        """Validar que la lista no esté vacía"""
+        if not value:
+            raise serializers.ValidationError("La lista de IDs no puede estar vacía")
+        return value

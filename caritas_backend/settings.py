@@ -255,34 +255,22 @@ REST_FRAMEWORK = {
 }
 
 # ============================================================================
-# CONFIGURACIÓN DE DRF SPECTACULAR (SWAGGER)
+# CONFIGURACIÓN DE DRF SPECTACULAR (SWAGGER AUTOMÁTICO)
 # ============================================================================
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Cáritas Monterrey API',
-    'DESCRIPTION': 'API para el sistema de gestión de Cáritas Monterrey',
+    'TITLE': 'API de Caritas Monterrey',
+    'DESCRIPTION': 'Sistema de Gestión de Albergues - API REST completa',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    
-    # Configuración de autenticación en Swagger
-    'AUTHENTICATION_WHITELIST': [
-        'users.authentication.CustomTokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    
-    # Configuración de schemas
     'SCHEMA_PATH_PREFIX': r'/api/',
     'COMPONENT_SPLIT_REQUEST': True,
     'SORT_OPERATIONS': True,
-    
-    # Tags para organizar endpoints
-    'TAGS': [
-        {'name': 'Authentication', 'description': 'Endpoints de autenticación'},
-        {'name': 'Users', 'description': 'Gestión de usuarios'},
-        {'name': 'Albergues', 'description': 'Gestión de albergues'},
-        {'name': 'Services', 'description': 'Gestión de servicios'},
-        {'name': 'Inventory', 'description': 'Gestión de inventario'},
-    ],
+    'COMPONENT_SPLIT_PATCH': True,
+    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+    'OPERATION_ID_GENERATOR': 'drf_spectacular.utils.camelize_operation_id',
+    'SCHEMA_PATH_PREFIX_TRIM': True,
+    'SCHEMA_PATH_PREFIX_INSERT': '/api',
 }
 
 # ============================================================================
