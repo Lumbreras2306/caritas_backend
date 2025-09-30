@@ -24,7 +24,7 @@ from .serializers import (
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Locations'],
+        tags=['Albergues'],
         summary="Lista ubicaciones",
         description="Obtiene lista paginada de ubicaciones geográficas con filtros y búsqueda",
         parameters=[
@@ -35,7 +35,7 @@ from .serializers import (
         ]
     ),
     create=extend_schema(
-        tags=['Locations'],
+        tags=['Albergues'],
         summary="Crear ubicación",
         description="Crea una nueva ubicación geográfica",
         examples=[
@@ -53,10 +53,10 @@ from .serializers import (
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Locations'], summary="Detalle de ubicación"),
-    update=extend_schema(tags=['Locations'], summary="Actualizar ubicación"),
-    partial_update=extend_schema(tags=['Locations'], summary="Actualizar ubicación parcial"),
-    destroy=extend_schema(tags=['Locations'], summary="Eliminar ubicación"),
+    retrieve=extend_schema(tags=['Albergues'], summary="Detalle de ubicación"),
+    update=extend_schema(tags=['Albergues'], summary="Actualizar ubicación"),
+    partial_update=extend_schema(tags=['Albergues'], summary="Actualizar ubicación parcial"),
+    destroy=extend_schema(tags=['Albergues'], summary="Eliminar ubicación"),
 )
 class LocationViewSet(viewsets.ModelViewSet):
     """
@@ -90,7 +90,7 @@ class LocationViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Hostels'],
+        tags=['Albergues'],
         summary="Lista albergues",
         description="Obtiene lista paginada de albergues con información de ubicación y capacidad",
         parameters=[
@@ -101,7 +101,7 @@ class LocationViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Hostels'],
+        tags=['Albergues'],
         summary="Crear albergue",
         description="Crea un nuevo albergue con su ubicación",
         examples=[
@@ -124,10 +124,10 @@ class LocationViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Hostels'], summary="Detalle de albergue"),
-    update=extend_schema(tags=['Hostels'], summary="Actualizar albergue"),
-    partial_update=extend_schema(tags=['Hostels'], summary="Actualizar albergue parcial"),
-    destroy=extend_schema(tags=['Hostels'], summary="Eliminar albergue"),
+    retrieve=extend_schema(tags=['Albergues'], summary="Detalle de albergue"),
+    update=extend_schema(tags=['Albergues'], summary="Actualizar albergue"),
+    partial_update=extend_schema(tags=['Albergues'], summary="Actualizar albergue parcial"),
+    destroy=extend_schema(tags=['Albergues'], summary="Eliminar albergue"),
 )
 class HostelViewSet(viewsets.ModelViewSet):
     """
@@ -162,7 +162,7 @@ class HostelViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Hostels'],
+        tags=['Albergues'],
         summary="Buscar albergues cercanos",
         description="Busca albergues cercanos a una ubicación específica usando coordenadas GPS",
         parameters=[
@@ -225,7 +225,7 @@ class HostelViewSet(viewsets.ModelViewSet):
             )
 
     @extend_schema(
-        tags=['Hostels'],
+        tags=['Albergues'],
         summary="Consultar disponibilidad",
         description="Consulta la disponibilidad de espacios en un albergue para una fecha específica",
         parameters=[
@@ -316,7 +316,7 @@ class HostelViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Hostel Reservations'],
+        tags=['Albergues'],
         summary="Lista reservas de alojamiento",
         description="Obtiene lista paginada de reservas de alojamiento en albergues",
         parameters=[
@@ -328,7 +328,7 @@ class HostelViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Hostel Reservations'],
+        tags=['Albergues'],
         summary="Crear reserva de alojamiento",
         description="Crea una nueva reserva de alojamiento en un albergue",
         examples=[
@@ -356,10 +356,10 @@ class HostelViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Hostel Reservations'], summary="Detalle de reserva de alojamiento"),
-    update=extend_schema(tags=['Hostel Reservations'], summary="Actualizar reserva de alojamiento"),
-    partial_update=extend_schema(tags=['Hostel Reservations'], summary="Actualizar reserva parcial"),
-    destroy=extend_schema(tags=['Hostel Reservations'], summary="Eliminar reserva de alojamiento"),
+    retrieve=extend_schema(tags=['Albergues'], summary="Detalle de reserva de alojamiento"),
+    update=extend_schema(tags=['Albergues'], summary="Actualizar reserva de alojamiento"),
+    partial_update=extend_schema(tags=['Albergues'], summary="Actualizar reserva parcial"),
+    destroy=extend_schema(tags=['Albergues'], summary="Eliminar reserva de alojamiento"),
 )
 class HostelReservationViewSet(viewsets.ModelViewSet):
     """
@@ -394,7 +394,7 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Hostel Reservations'],
+        tags=['Albergues'],
         summary="Mis reservas de alojamiento",
         description="Obtiene las reservas de alojamiento del usuario actual. Los administradores ven todas las reservas.",
         parameters=[
@@ -423,7 +423,7 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @extend_schema(
-        tags=['Hostel Reservations'],
+        tags=['Albergues'],
         summary="Actualizar múltiples estados",
         description="Actualiza el estado de múltiples reservas de alojamiento de forma masiva",
         request=BulkStatusUpdateSerializer,
