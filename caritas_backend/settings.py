@@ -18,7 +18,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-(gqx4$3lehmu95g$!slo*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,20.246.91.21', cast=Csv())
 
 # ============================================================================
 # CONFIGURACIÓN DE TWILIO VERIFY
@@ -191,6 +191,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8001",  # Backend en puerto 8001
     "http://127.0.0.1:8001",
+    "http://20.246.91.21:8001",  # IP externa en puerto 8001
+    "http://20.246.91.21",  # IP externa sin puerto
 ]
 
 # Permitir credenciales
