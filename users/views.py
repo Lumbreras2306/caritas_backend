@@ -326,10 +326,6 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 # VIEWSETS PARA VERIFICACIÓN DE TELÉFONO
 # ============================================================================
 
-@extend_schema_view(
-    list=extend_schema(tags=['Phone Verification'], summary="Lista verificaciones (no disponible)"),
-    create=extend_schema(tags=['Phone Verification'], summary="Crear verificación (no disponible)"),
-)
 class PhoneVerificationViewSet(viewsets.ViewSet):
     """
     ViewSet para verificación de números de teléfono usando Twilio Verify.
@@ -496,19 +492,23 @@ class AdminUserLoginView(ObtainAuthToken):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@extend_schema_view(
-    logout=extend_schema(
-        tags=['Authentication'],
-        summary="Logout de administrador",
-        description="Cierra la sesión de un administrador eliminando su token"
-    )
+from rest_framework.views import APIView
+from rest_framework.authtoken.views import ObtainAuthToken
+
+@extend_schema(
+    tags=['Authentication'],
+    summary="Logout de administrador",
+    description="Cierra la sesión de un administrador eliminando su token",
+    responses={
+        200: OpenApiResponse(description="Logout exitoso"),
+        500: OpenApiResponse(description="Error al cerrar sesión"),
+    }
 )
-class AdminUserLogoutView(viewsets.GenericViewSet):
+class AdminUserLogoutView(APIView):
     """Vista para logout de administradores."""
     permission_classes = [permissions.IsAuthenticated]
-
-    @action(detail=False, methods=['post'])
-    def logout(self, request):
+    
+    def post(self, request):
         """Cerrar sesión del administrador."""
         try:
             request.user.auth_token.delete()
@@ -519,3 +519,25 @@ class AdminUserLogoutView(viewsets.GenericViewSet):
             return Response({
                 'error': 'Error al cerrar sesión'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@extend_schema(
+    tags=['Authentication'],
+    summary="Obtener token de autenticación",
+    description="Obtiene un token de autenticación para usuarios administradores usando credenciales",
+    responses={
+        200: OpenApiResponse(description="Token generado exitosamente"),
+        400: OpenApiResponse(description="Credenciales inválidas"),
+    },
+    examples=[
+        OpenApiExample(
+            'Obtener token',
+            value={
+                "username": "admin",
+                "password": "password123"
+            }
+        )
+    ]
+)
+class CustomObtainAuthToken(ObtainAuthToken):
+    """Vista personalizada para obtener token de autenticación con documentación."""
+    pass

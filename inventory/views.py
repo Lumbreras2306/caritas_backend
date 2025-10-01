@@ -23,7 +23,7 @@ from .serializers import (
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Items'],
+        tags=['Inventario'],
         summary="Lista artículos",
         description="Obtiene lista paginada de artículos del sistema de inventario",
         parameters=[
@@ -34,7 +34,7 @@ from .serializers import (
         ]
     ),
     create=extend_schema(
-        tags=['Items'],
+        tags=['Inventario'],
         summary="Crear artículo",
         description="Crea un nuevo artículo para usar en inventarios",
         examples=[
@@ -67,10 +67,10 @@ from .serializers import (
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Items'], summary="Detalle de artículo"),
-    update=extend_schema(tags=['Items'], summary="Actualizar artículo"),
-    partial_update=extend_schema(tags=['Items'], summary="Actualizar artículo parcial"),
-    destroy=extend_schema(tags=['Items'], summary="Eliminar artículo"),
+    retrieve=extend_schema(tags=['Inventario'], summary="Detalle de artículo"),
+    update=extend_schema(tags=['Inventario'], summary="Actualizar artículo"),
+    partial_update=extend_schema(tags=['Inventario'], summary="Actualizar artículo parcial"),
+    destroy=extend_schema(tags=['Inventario'], summary="Eliminar artículo"),
 )
 class ItemViewSet(viewsets.ModelViewSet):
     """
@@ -99,7 +99,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Items'],
+        tags=['Inventario'],
         summary="Lista categorías únicas",
         description="Obtiene una lista de todas las categorías únicas de artículos",
         responses={
@@ -116,7 +116,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         })
 
     @extend_schema(
-        tags=['Items'],
+        tags=['Inventario'],
         summary="Lista unidades únicas",
         description="Obtiene una lista de todas las unidades de medida únicas",
         responses={
@@ -138,7 +138,7 @@ class ItemViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Inventories'],
+        tags=['Inventario'],
         summary="Lista inventarios",
         description="Obtiene lista paginada de inventarios por albergue",
         parameters=[
@@ -148,7 +148,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Inventories'],
+        tags=['Inventario'],
         summary="Crear inventario",
         description="Crea un nuevo inventario para un albergue",
         examples=[
@@ -170,10 +170,10 @@ class ItemViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Inventories'], summary="Detalle de inventario"),
-    update=extend_schema(tags=['Inventories'], summary="Actualizar inventario"),
-    partial_update=extend_schema(tags=['Inventories'], summary="Actualizar inventario parcial"),
-    destroy=extend_schema(tags=['Inventories'], summary="Eliminar inventario"),
+    retrieve=extend_schema(tags=['Inventario'], summary="Detalle de inventario"),
+    update=extend_schema(tags=['Inventario'], summary="Actualizar inventario"),
+    partial_update=extend_schema(tags=['Inventario'], summary="Actualizar inventario parcial"),
+    destroy=extend_schema(tags=['Inventario'], summary="Eliminar inventario"),
 )
 class InventoryViewSet(viewsets.ModelViewSet):
     """
@@ -202,7 +202,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Inventories'],
+        tags=['Inventario'],
         summary="Resumen del inventario",
         description="Obtiene resumen completo del inventario con estadísticas y análisis por categoría",
         responses={
@@ -282,7 +282,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Inventory Items'],
+        tags=['Inventario'],
         summary="Lista artículos en inventarios",
         description="Obtiene lista de artículos con su stock en inventarios específicos",
         parameters=[
@@ -294,7 +294,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Inventory Items'],
+        tags=['Inventario'],
         summary="Agregar artículo a inventario",
         description="Agrega un artículo específico a un inventario con cantidad inicial",
         examples=[
@@ -318,10 +318,10 @@ class InventoryViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Inventory Items'], summary="Detalle de artículo en inventario"),
-    update=extend_schema(tags=['Inventory Items'], summary="Actualizar artículo en inventario"),
-    partial_update=extend_schema(tags=['Inventory Items'], summary="Actualizar artículo parcial"),
-    destroy=extend_schema(tags=['Inventory Items'], summary="Eliminar artículo de inventario"),
+    retrieve=extend_schema(tags=['Inventario'], summary="Detalle de artículo en inventario"),
+    update=extend_schema(tags=['Inventario'], summary="Actualizar artículo en inventario"),
+    partial_update=extend_schema(tags=['Inventario'], summary="Actualizar artículo parcial"),
+    destroy=extend_schema(tags=['Inventario'], summary="Eliminar artículo de inventario"),
 )
 class InventoryItemViewSet(viewsets.ModelViewSet):
     """
@@ -358,7 +358,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Inventory Items'],
+        tags=['Inventario'],
         summary="Actualizar cantidad",
         description="Actualiza la cantidad de un artículo específico en inventario usando operaciones (set, add, remove)",
         request=InventoryItemQuantityUpdateSerializer,
@@ -420,7 +420,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
-        tags=['Inventory Items'],
+        tags=['Inventario'],
         summary="Artículos con stock bajo",
         description="Lista todos los artículos con stock por debajo del umbral especificado",
         parameters=[
@@ -462,7 +462,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         })
 
     @extend_schema(
-        tags=['Inventory Items'],
+        tags=['Inventario'],
         summary="Artículos sin stock",
         description="Lista todos los artículos que están sin stock (cantidad = 0)",
         parameters=[

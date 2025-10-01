@@ -25,7 +25,7 @@ from .serializers import (
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Services'],
+        tags=['Servicios'],
         summary="Lista servicios",
         description="Obtiene lista paginada de servicios disponibles (comida, aseo, etc.)",
         parameters=[
@@ -36,7 +36,7 @@ from .serializers import (
         ]
     ),
     create=extend_schema(
-        tags=['Services'],
+        tags=['Servicios'],
         summary="Crear servicio",
         description="Crea un nuevo servicio disponible en el sistema",
         examples=[
@@ -64,10 +64,10 @@ from .serializers import (
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Services'], summary="Detalle de servicio"),
-    update=extend_schema(tags=['Services'], summary="Actualizar servicio"),
-    partial_update=extend_schema(tags=['Services'], summary="Actualizar servicio parcial"),
-    destroy=extend_schema(tags=['Services'], summary="Eliminar servicio"),
+    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de servicio"),
+    update=extend_schema(tags=['Servicios'], summary="Actualizar servicio"),
+    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar servicio parcial"),
+    destroy=extend_schema(tags=['Servicios'], summary="Eliminar servicio"),
 )
 class ServiceViewSet(viewsets.ModelViewSet):
     """
@@ -96,7 +96,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Services'],
+        tags=['Servicios'],
         summary="Estadísticas de servicios",
         description="Obtiene estadísticas generales de todos los servicios del sistema",
         responses={
@@ -157,7 +157,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Service Schedules'],
+        tags=['Servicios'],
         summary="Lista horarios de servicios",
         description="Obtiene lista paginada de horarios para servicios",
         parameters=[
@@ -166,7 +166,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Service Schedules'],
+        tags=['Servicios'],
         summary="Crear horario de servicio",
         description="Crea un nuevo horario para servicios",
         examples=[
@@ -190,10 +190,10 @@ class ServiceViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Service Schedules'], summary="Detalle de horario"),
-    update=extend_schema(tags=['Service Schedules'], summary="Actualizar horario"),
-    partial_update=extend_schema(tags=['Service Schedules'], summary="Actualizar horario parcial"),
-    destroy=extend_schema(tags=['Service Schedules'], summary="Eliminar horario"),
+    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de horario"),
+    update=extend_schema(tags=['Servicios'], summary="Actualizar horario"),
+    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar horario parcial"),
+    destroy=extend_schema(tags=['Servicios'], summary="Eliminar horario"),
 )
 class ServiceScheduleViewSet(viewsets.ModelViewSet):
     """
@@ -227,7 +227,7 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Hostel Services'],
+        tags=['Servicios'],
         summary="Lista servicios de albergues",
         description="Obtiene lista de servicios asignados a albergues específicos",
         parameters=[
@@ -238,7 +238,7 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Hostel Services'],
+        tags=['Servicios'],
         summary="Asignar servicio a albergue",
         description="Asigna un servicio específico a un albergue",
         examples=[
@@ -253,10 +253,10 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Hostel Services'], summary="Detalle de servicio de albergue"),
-    update=extend_schema(tags=['Hostel Services'], summary="Actualizar servicio de albergue"),
-    partial_update=extend_schema(tags=['Hostel Services'], summary="Actualizar servicio parcial"),
-    destroy=extend_schema(tags=['Hostel Services'], summary="Eliminar servicio de albergue"),
+    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de servicio de albergue"),
+    update=extend_schema(tags=['Servicios'], summary="Actualizar servicio de albergue"),
+    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar servicio parcial"),
+    destroy=extend_schema(tags=['Servicios'], summary="Eliminar servicio de albergue"),
 )
 class HostelServiceViewSet(viewsets.ModelViewSet):
     """
@@ -285,7 +285,7 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Hostel Services'],
+        tags=['Servicios'],
         summary="Servicios por albergue",
         description="Obtiene servicios agrupados por albergue o de un albergue específico",
         parameters=[
@@ -346,7 +346,7 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=['Service Reservations'],
+        tags=['Servicios'],
         summary="Lista reservas de servicios",
         description="Obtiene lista paginada de reservas de servicios (comida, duchas, etc.)",
         parameters=[
@@ -358,7 +358,7 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
         ]
     ),
     create=extend_schema(
-        tags=['Service Reservations'],
+        tags=['Servicios'],
         summary="Crear reserva de servicio",
         description="Crea una nueva reserva de servicio para un usuario",
         examples=[
@@ -386,10 +386,10 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Service Reservations'], summary="Detalle de reserva de servicio"),
-    update=extend_schema(tags=['Service Reservations'], summary="Actualizar reserva de servicio"),
-    partial_update=extend_schema(tags=['Service Reservations'], summary="Actualizar reserva parcial"),
-    destroy=extend_schema(tags=['Service Reservations'], summary="Eliminar reserva de servicio"),
+    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de reserva de servicio"),
+    update=extend_schema(tags=['Servicios'], summary="Actualizar reserva de servicio"),
+    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar reserva parcial"),
+    destroy=extend_schema(tags=['Servicios'], summary="Eliminar reserva de servicio"),
 )
 class ReservationServiceViewSet(viewsets.ModelViewSet):
     """
@@ -428,7 +428,7 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         return instance
 
     @extend_schema(
-        tags=['Service Reservations'],
+        tags=['Servicios'],
         summary="Mis reservas de servicios",
         description="Obtiene las reservas de servicios del usuario actual. Los administradores ven todas las reservas.",
         parameters=[
@@ -457,7 +457,7 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @extend_schema(
-        tags=['Service Reservations'],
+        tags=['Servicios'],
         summary="Reservas próximas",
         description="Obtiene reservas de servicios en las próximas 24 horas",
         parameters=[
@@ -489,7 +489,7 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         })
 
     @extend_schema(
-        tags=['Service Reservations'],
+        tags=['Servicios'],
         summary="Actualizar múltiples estados",
         description="Actualiza el estado de múltiples reservas de servicios de forma masiva",
         request=BulkServiceReservationStatusUpdateSerializer,

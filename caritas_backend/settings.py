@@ -18,7 +18,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-(gqx4$3lehmu95g$!slo*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,20.246.91.21', cast=Csv())
 
 # ============================================================================
 # CONFIGURACIÓN DE TWILIO VERIFY
@@ -189,6 +189,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:3000",  # React dev server alternativo
     "http://127.0.0.1:3000",
+    "http://localhost:8001",  # Backend en puerto 8001
+    "http://127.0.0.1:8001",
+    "http://20.246.91.21:8001",  # IP externa en puerto 8001
+    "http://20.246.91.21",  # IP externa sin puerto
 ]
 
 # Permitir credenciales
@@ -269,8 +273,43 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_PATCH': True,
     'COMPONENT_NO_READ_ONLY_REQUIRED': True,
     'OPERATION_ID_GENERATOR': 'drf_spectacular.utils.camelize_operation_id',
-    'SCHEMA_PATH_PREFIX_TRIM': True,
-    'SCHEMA_PATH_PREFIX_INSERT': '/api',
+    'TAGS': [
+        {'name': 'Pre-Register Users', 'description': 'Gestión de pre-registros de usuarios'},
+        {'name': 'Custom Users', 'description': 'Gestión de usuarios finales del sistema'},
+        {'name': 'Admin Users', 'description': 'Gestión de usuarios administradores'},
+        {'name': 'Phone Verification', 'description': 'Verificación de números de teléfono'},
+        {'name': 'Authentication', 'description': 'Autenticación y login/logout'},
+        {'name': 'Albergues', 'description': 'Gestión de albergues, ubicaciones y reservas'},
+        {'name': 'Servicios', 'description': 'Gestión de servicios y reservas de servicios'},
+        {'name': 'Inventario', 'description': 'Gestión de inventario y artículos'},
+    ],
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    'SERVE_AUTHENTICATION': None,
+    'ENUM_NAME_OVERRIDES': {
+        'StatusF02Enum': 'StatusEnum',
+        'StatusDb8Enum': 'StatusEnum',
+    },
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+        'filter': True,
+        'showExtensions': True,
+        'showCommonExtensions': True,
+    },
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': False,
+        'hideHostname': False,
+        'hideLoading': False,
+        'nativeScrollbars': False,
+        'theme': {
+            'colors': {
+                'primary': {
+                    'main': '#32329f'
+                }
+            }
+        }
+    }
 }
 
 # ============================================================================

@@ -1,7 +1,6 @@
 # urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework.authtoken.views import obtain_auth_token
 
 from .views import (
     PreRegisterUserViewSet,
@@ -10,6 +9,7 @@ from .views import (
     PhoneVerificationViewSet,
     AdminUserLoginView,
     AdminUserLogoutView,
+    CustomObtainAuthToken,
 )
 
 # ============================================================================
@@ -41,10 +41,10 @@ urlpatterns = [
     path('auth/admin-login/', AdminUserLoginView.as_view(), name='admin-login'),
     
     # Logout de administradores
-    path('auth/admin-logout/', AdminUserLogoutView.as_view({'post': 'logout'}), name='admin-logout'),
+    path('auth/admin-logout/', AdminUserLogoutView.as_view(), name='admin-logout'),
     
     # Token de autenticación estándar de DRF (opcional)
-    path('auth/token/', obtain_auth_token, name='api_token_auth'),
+    path('auth/token/', CustomObtainAuthToken.as_view(), name='api_token_auth'),
 ]
 
 # ============================================================================
