@@ -42,12 +42,16 @@ class LocationSerializer(serializers.ModelSerializer):
 class HostelSerializer(serializers.ModelSerializer):
     """Serializer para albergues"""
     location_data = LocationSerializer(source='location', read_only=True)
-    total_capacity = serializers.SerializerMethodField()
-    current_capacity = serializers.SerializerMethodField()
-    available_capacity = serializers.SerializerMethodField()
+    total_capacity = serializers.SerializerMethodField(help_text="Capacidad total del albergue (hombres + mujeres)")
+    current_capacity = serializers.SerializerMethodField(help_text="Capacidad actual utilizada (hombres + mujeres)")
+    available_capacity = serializers.SerializerMethodField(help_text="Capacidad disponible por género y total")
     coordinates = serializers.SerializerMethodField()
     formatted_address = serializers.SerializerMethodField()
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    
+    # Campos de capacidad actual - explícitamente definidos para Swagger
+    current_men_capacity = serializers.IntegerField(read_only=True, help_text="Capacidad actual de hombres utilizada")
+    current_women_capacity = serializers.IntegerField(read_only=True, help_text="Capacidad actual de mujeres utilizada")
     
     class Meta:
         model = Hostel
