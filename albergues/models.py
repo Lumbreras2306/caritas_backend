@@ -96,9 +96,21 @@ class Hostel(AuditModel):
         null=True,
         blank=True
     )
+    current_men_capacity = models.PositiveIntegerField(
+        verbose_name="Capacidad de hombres actual",
+        help_text="Número de hombres que actualmente alberga el albergue",
+        null=True,
+        blank=True
+    )
     women_capacity = models.PositiveIntegerField(
         verbose_name="Capacidad de mujeres",
         help_text="Número máximo de mujeres que puede albergar el albergue",
+        null=True,
+        blank=True
+    )
+    current_women_capacity = models.PositiveIntegerField(
+        verbose_name="Capacidad de mujeres actual",
+        help_text="Número de mujeres que actualmente alberga el albergue",
         null=True,
         blank=True
     )
@@ -136,7 +148,57 @@ class Hostel(AuditModel):
 
     def get_total_capacity(self):
         """Retorna la capacidad total del albergue"""
-        return self.men_capacity + self.women_capacity
+        men_cap = self.men_capacity or 0
+        women_cap = self.women_capacity or 0
+        return men_cap + women_cap
+    
+    def get_current_capacity(self):
+        """Retorna la capacidad actual del albergue"""
+        men_current = self.current_men_capacity or 0
+        women_current = self.current_women_capacity or 0
+        return men_current + women_current
+    
+    def get_available_capacity(self):
+        """Retorna la capacidad disponible del albergue"""
+        men_total = self.men_capacity or 0
+        women_total = self.women_capacity or 0
+        men_current = self.current_men_capacity or 0
+        women_current = self.current_women_capacity or 0
+        
+        return {
+            'men': max(0, men_total - men_current),
+            'women': max(0, women_total - women_current),
+            'total': max(0, (men_total + women_total) - (men_current + women_current))
+        }
+    
+    def has_capacity_for(self, men_quantity=0, women_quantity=0):
+        """Verifica si el albergue tiene capacidad para la cantidad especificada"""
+        available = self.get_available_capacity()
+        return men_quantity <= available['men'] and women_quantity <= available['women']
+    
+    def add_to_current_capacity(self, men_quantity=0, women_quantity=0):
+        """Agrega cantidad a la capacidad actual del albergue"""
+        if men_quantity > 0:
+            current_men = self.current_men_capacity or 0
+            self.current_men_capacity = current_men + men_quantity
+        
+        if women_quantity > 0:
+            current_women = self.current_women_capacity or 0
+            self.current_women_capacity = current_women + women_quantity
+        
+        self.save(update_fields=['current_men_capacity', 'current_women_capacity'])
+    
+    def remove_from_current_capacity(self, men_quantity=0, women_quantity=0):
+        """Quita cantidad de la capacidad actual del albergue"""
+        if men_quantity > 0:
+            current_men = self.current_men_capacity or 0
+            self.current_men_capacity = max(0, current_men - men_quantity)
+        
+        if women_quantity > 0:
+            current_women = self.current_women_capacity or 0
+            self.current_women_capacity = max(0, current_women - women_quantity)
+        
+        self.save(update_fields=['current_men_capacity', 'current_women_capacity'])
 
 class HostelReservation(AuditModel):
     """

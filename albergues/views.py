@@ -276,9 +276,16 @@ class HostelViewSet(viewsets.ModelViewSet):
                 total=Sum('women_quantity')
             )['total'] or 0
             
-            # Calcular disponibilidad
-            available_men = max(0, (hostel.men_capacity or 0) - reserved_men)
-            available_women = max(0, (hostel.women_capacity or 0) - reserved_women)
+            # Calcular disponibilidad usando la capacidad actual del albergue
+            men_total = hostel.men_capacity or 0
+            women_total = hostel.women_capacity or 0
+            men_current = hostel.current_men_capacity or 0
+            women_current = hostel.current_women_capacity or 0
+            
+            # La disponibilidad real es la capacidad total menos la capacidad actual
+            # menos las reservas confirmadas para esa fecha específica
+            available_men = max(0, men_total - men_current - reserved_men)
+            available_women = max(0, women_total - women_current - reserved_women)
             
             return Response({
                 'hostel': {
@@ -292,7 +299,12 @@ class HostelViewSet(viewsets.ModelViewSet):
                     'women': hostel.women_capacity or 0,
                     'total': hostel.get_total_capacity()
                 },
-                'reserved': {
+                'current_occupancy': {
+                    'men': men_current,
+                    'women': women_current,
+                    'total': men_current + women_current
+                },
+                'reserved_for_date': {
                     'men': reserved_men,
                     'women': reserved_women,
                     'total': reserved_men + reserved_women
@@ -467,18 +479,30 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
-                reservations = HostelReservation.objects.filter(id__in=reservation_ids)
-                updated_count = reservations.update(
-                    status=new_status,
-                    updated_by=request.user,
-                    updated_at=timezone.now()
-                )
+                reservations = HostelReservation.objects.filter(id__in=reservation_ids).select_related('hostel')
+                
+                # Actualizar cada reserva individualmente para manejar la capacidad
+                updated_count = 0
+                updated_reservations = []
+                
+                for reservation in reservations:
+                    old_status = reservation.status
+                    reservation.status = new_status
+                    reservation.updated_by = request.user
+                    reservation.updated_at = timezone.now()
+                    reservation.save()
+                    
+                    # Actualizar capacidad del albergue
+                    self._update_hostel_capacity_for_reservation(reservation, old_status, new_status)
+                    
+                    updated_count += 1
+                    updated_reservations.append(reservation.id)
                 
                 return Response({
                     'message': f'{updated_count} reservas actualizadas exitosamente',
                     'updated_count': updated_count,
                     'new_status': new_status,
-                    'updated_reservations': list(reservations.values_list('id', flat=True))
+                    'updated_reservations': updated_reservations
                 }, status=status.HTTP_200_OK)
                 
         except Exception as e:
@@ -486,3 +510,27 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
                 {'error': f'Error al actualizar reservas: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    def _update_hostel_capacity_for_reservation(self, reservation, old_status, new_status):
+        """Actualizar la capacidad del albergue para una reserva específica"""
+        hostel = reservation.hostel
+        
+        # Si la reserva se confirma, agregar a la capacidad actual
+        if old_status != 'confirmed' and new_status == 'confirmed':
+            self._add_to_current_capacity(hostel, reservation)
+        
+        # Si la reserva se cancela, rechaza o completa desde confirmada, quitar de la capacidad actual
+        elif old_status == 'confirmed' and new_status in ['cancelled', 'rejected', 'completed']:
+            self._remove_from_current_capacity(hostel, reservation)
+    
+    def _add_to_current_capacity(self, hostel, reservation):
+        """Agregar la cantidad de la reserva a la capacidad actual del albergue"""
+        men_quantity = reservation.men_quantity or 0
+        women_quantity = reservation.women_quantity or 0
+        hostel.add_to_current_capacity(men_quantity, women_quantity)
+    
+    def _remove_from_current_capacity(self, hostel, reservation):
+        """Quitar la cantidad de la reserva de la capacidad actual del albergue"""
+        men_quantity = reservation.men_quantity or 0
+        women_quantity = reservation.women_quantity or 0
+        hostel.remove_from_current_capacity(men_quantity, women_quantity)
