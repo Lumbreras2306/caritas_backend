@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        body {
+            margin:0;
+            background: #fafafa;
+        }
+        
+        /* Estilos personalizados para mejorar la experiencia de autenticación */
+        .swagger-ui .topbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 10px 0;
+        }
+        
+        .swagger-ui .topbar .download-url-wrapper {
+            display: none;
+        }
+        
+        .swagger-ui .topbar .topbar-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .swagger-ui .topbar .topbar-wrapper .link {
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        /* Botón de autenticación personalizado */
+        .auth-btn-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .auth-btn-wrapper .authorize {
+            background: #4CAF50 !important;
+            border-color: #4CAF50 !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        .auth-btn-wrapper .authorize:hover {
+            background: #45a049 !important;
+            border-color: #45a049 !important;
+        }
+        
+        /* Información de autenticación */
+        .auth-info-banner {
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px;
+            color: #1976d2;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
+        .auth-info-banner h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        
+        .auth-info-banner code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #d63384;
+        }
+        
+        .auth-info-banner ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .auth-info-banner li {
+            margin: 5px 0;
+        }
+        
+        /* Botón de login rápido */
+        #quick-login-btn {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        #quick-login-btn:hover {
+            background: #F57C00;
+        }
+        
+        /* Notificaciones */
+        .swagger-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            max-width: 400px;
+            color: white;
+        }
+        
+        .swagger-notification.success {
+            background: #4CAF50;
+        }
+        
+        .swagger-notification.error {
+            background: #f44336;
+        }
+        
+        .swagger-notification.info {
+            background: #2196F3;
+        }
+        
+        /* Mejorar la visibilidad del botón Authorize */
+        .swagger-ui .auth-container .auth-btn-wrapper .authorize {
+            background: #4CAF50 !important;
+            border: 2px solid #4CAF50 !important;
+            color: white !important;
+            font-weight: bold !important;
+            padding: 10px 20px !important;
+            border-radius: 6px !important;
+            font-size: 14px !important;
+        }
+        
+        .swagger-ui .auth-container .auth-btn-wrapper .authorize:hover {
+            background: #45a049 !important;
+            border-color: #45a049 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        /* Estilo para el modal de autorización */
+        .swagger-ui .auth-container .auth-btn-wrapper .authorize svg {
+            fill: white !important;
+        }
+        
+        /* Mejorar la visibilidad de los campos de autorización */
+        .swagger-ui .auth-container .auth-wrapper .authorize .auth-container .auth-btn-wrapper .authorize {
+            background: #4CAF50 !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    
+    <!-- Banner de información de autenticación -->
+    <div class="auth-info-banner" id="auth-info-banner">
+        <h4>🔐 Guía de Autenticación</h4>
+        <p><strong>Para usar los endpoints protegidos:</strong></p>
+        <ol>
+            <li>Haz clic en el botón <strong>"Authorize"</strong> (esquina superior derecha)</li>
+            <li>Obtén tu token usando: <code>POST /api/users/auth/admin-login/</code></li>
+            <li>Ingresa el token en el formato: <code>Token tu_token_aqui</code></li>
+            <li>¡Listo! Ya puedes usar todos los endpoints protegidos</li>
+        </ol>
+        <p><em>💡 Tip: Usa el botón "Login Rápido" para autenticarte directamente con tus credenciales.</em></p>
+    </div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        // Configuración de Swagger UI
+        window.onload = function() {
+            const ui = SwaggerUIBundle({
+                url: '/api/schema/',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                tryItOutEnabled: true,
+                requestInterceptor: function(request) {
+                    // Agregar token automáticamente si está disponible
+                    const token = localStorage.getItem('swagger-ui-token');
+                    if (token && !request.headers.Authorization) {
+                        request.headers.Authorization = 'Token ' + token;
+                    }
+                    return request;
+                },
+                onComplete: function() {
+                    // Ocultar el banner después de cargar
+                    setTimeout(() => {
+                        const banner = document.getElementById('auth-info-banner');
+                        if (banner) {
+                            banner.style.display = 'none';
+                        }
+                    }, 5000);
+                    
+                    // Agregar botón de login rápido
+                    addQuickLoginButton();
+                }
+            });
+            
+            window.ui = ui;
+        };
+        
+        // Función para mostrar notificación
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `swagger-notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        // Función para manejar la respuesta del login
+        function handleLoginResponse(response) {
+            try {
+                const data = JSON.parse(response);
+                if (data.token) {
+                    // Guardar token en localStorage
+                    localStorage.setItem('swagger-ui-token', data.token);
+                    
+                    // Actualizar el campo de autorización
+                    const authInput = document.querySelector('input[placeholder*="Authorization"]');
+                    if (authInput) {
+                        authInput.value = `Token ${data.token}`;
+                    }
+                    
+                    showNotification('✅ Token obtenido exitosamente. Ya puedes usar los endpoints protegidos.', 'success');
+                    
+                    // Cerrar el modal de autorización si está abierto
+                    const closeBtn = document.querySelector('.auth-btn-wrapper .authorize');
+                    if (closeBtn) {
+                        closeBtn.click();
+                    }
+                } else {
+                    showNotification('❌ Error: No se recibió token en la respuesta', 'error');
+                }
+            } catch (e) {
+                showNotification('❌ Error al procesar la respuesta del login', 'error');
+            }
+        }
+        
+        // Función para agregar botón de login rápido
+        function addQuickLoginButton() {
+            const authWrapper = document.querySelector('.auth-btn-wrapper');
+            if (!authWrapper || document.querySelector('#quick-login-btn')) return;
+            
+            const quickLoginBtn = document.createElement('button');
+            quickLoginBtn.id = 'quick-login-btn';
+            quickLoginBtn.innerHTML = '🔑 Login Rápido';
+            
+            quickLoginBtn.onclick = function() {
+                const username = prompt('Usuario administrador:');
+                const password = prompt('Contraseña:', '');
+                
+                if (username && password) {
+                    fetch('/api/users/auth/admin-login/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            password: password
+                        })
+                    })
+                    .then(response => response.text())
+                    .then(data => handleLoginResponse(data))
+                    .catch(error => {
+                        showNotification('❌ Error de conexión: ' + error.message, 'error');
+                    });
+                }
+            };
+            
+            authWrapper.appendChild(quickLoginBtn);
+        }
+        
+        // Interceptar fetch para agregar token automáticamente
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            const token = localStorage.getItem('swagger-ui-token');
+            if (token && !options.headers) {
+                options.headers = {};
+            }
+            if (token && options.headers) {
+                options.headers['Authorization'] = `Token ${token}`;
+            }
+            return originalFetch.call(this, url, options);
+        };
+    </script>
+</body>
+</html>

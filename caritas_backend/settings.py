@@ -264,7 +264,27 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'API de Caritas Monterrey',
-    'DESCRIPTION': 'Sistema de Gestión de Albergues - API REST completa',
+    'DESCRIPTION': '''
+    Sistema de Gestión de Albergues - API REST completa
+    
+    ## 🔐 Autenticación
+    
+    Esta API utiliza autenticación por **Token de Administrador**. Para usar los endpoints protegidos:
+    
+    1. **Obtener Token**: Usa el endpoint `/api/users/auth/admin-login/` con tus credenciales de administrador
+    2. **Usar Token**: Incluye el token en el header `Authorization: Token <tu_token>`
+    3. **Ejemplo**: `Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`
+    
+    ## 📋 Endpoints Públicos (No requieren autenticación)
+    - `POST /api/users/pre-register/` - Crear pre-registro
+    - `POST /api/users/pre-register/verify-phone/` - Verificar teléfono
+    - `POST /api/users/phone-verification/send/` - Enviar código SMS
+    - `POST /api/users/phone-verification/verify/` - Verificar código SMS
+    
+    ## 🔒 Endpoints Protegidos (Requieren token de administrador)
+    - Todos los demás endpoints requieren autenticación
+    - Usa el botón "Authorize" en la esquina superior derecha para configurar tu token
+    ''',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SCHEMA_PATH_PREFIX': r'/api/',
@@ -296,6 +316,17 @@ SPECTACULAR_SETTINGS = {
         'filter': True,
         'showExtensions': True,
         'showCommonExtensions': True,
+        'tryItOutEnabled': True,
+        'requestInterceptor': '''
+        function(request) {
+            // Agregar token automáticamente si está disponible
+            const token = localStorage.getItem('swagger-ui-token');
+            if (token) {
+                request.headers['Authorization'] = 'Token ' + token;
+            }
+            return request;
+        }
+        ''',
     },
     'REDOC_UI_SETTINGS': {
         'hideDownloadButton': False,
@@ -309,7 +340,31 @@ SPECTACULAR_SETTINGS = {
                 }
             }
         }
-    }
+    },
+    # Configuración de esquemas de seguridad
+    'SECURITY_DEFINITIONS': {
+        'Token': {
+            'type': 'apiKey',
+            'in': 'header',
+            'name': 'Authorization',
+            'description': 'Token de autenticación de administrador. Formato: Token <tu_token>'
+        }
+    },
+    'SECURITY': [
+        {
+            'Token': []
+        }
+    ],
+    # Configuración para mostrar esquemas de seguridad en operaciones
+    'AUTHENTICATION_WHITELIST': [
+        'users.authentication.CustomTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'PARSER_WHITELIST': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
 }
 
 # ============================================================================

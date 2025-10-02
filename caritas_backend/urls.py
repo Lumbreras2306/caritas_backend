@@ -4,6 +4,7 @@ URL configuration for caritas_backend project.
 from django.urls import path, include
 from django.http import HttpResponse
 from django.contrib import admin
+from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 def documentation_view(request):
@@ -56,6 +57,12 @@ def documentation_view(request):
             }
             .stat-number { font-size: 2em; font-weight: bold; color: #667eea; }
             .stat-label { font-size: 0.9em; color: #666; }
+            .auth-info {
+                background: #e3f2fd; border: 1px solid #2196F3; border-radius: 8px;
+                padding: 20px; margin: 20px 0; text-align: left;
+            }
+            .auth-info h4 { color: #1976d2; margin-top: 0; }
+            .auth-info code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
         </style>
     </head>
     <body>
@@ -65,8 +72,20 @@ def documentation_view(request):
                 Sistema de Gestión de Albergues - Documentación automática generada desde el código
             </p>
             
+            <div class="auth-info">
+                <h4>🔐 Autenticación</h4>
+                <p><strong>Para usar los endpoints protegidos:</strong></p>
+                <ol>
+                    <li>Ve a <strong>Swagger UI</strong> y haz clic en el botón <strong>"Authorize"</strong></li>
+                    <li>Obtén tu token usando: <code>POST /api/users/auth/admin-login/</code></li>
+                    <li>Ingresa el token en el formato: <code>Token tu_token_aqui</code></li>
+                    <li>¡Listo! Ya puedes usar todos los endpoints protegidos</li>
+                </ol>
+            </div>
+            
             <div class="buttons">
-                <a href="/swagger/" class="btn btn-primary">📖 Swagger UI</a>
+                <a href="/swagger-auth/" class="btn btn-primary">📖 Swagger UI (Con Auth)</a>
+                <a href="/swagger/" class="btn btn-secondary">📖 Swagger UI (Básico)</a>
                 <a href="/redoc/" class="btn btn-secondary">📋 ReDoc</a>
                 <a href="/api/schema/" class="btn btn-info">📄 API Schema</a>
             </div>
@@ -98,7 +117,7 @@ def documentation_view(request):
                 <h3>✨ Características:</h3>
                 <ul>
                     <li><strong>Documentación automática:</strong> Siempre actualizada con el código</li>
-                    <li><strong>Autenticación dual:</strong> AdminUser y CustomUser con tokens</li>
+                    <li><strong>Autenticación con tokens:</strong> Sistema seguro para administradores</li>
                     <li><strong>SMS con Twilio:</strong> Verificación de teléfonos</li>
                     <li><strong>API REST completa:</strong> CRUD, filtros, búsqueda, paginación</li>
                 </ul>
@@ -132,4 +151,10 @@ urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    
+    # Swagger con autenticación mejorada
+    path('swagger-auth/', TemplateView.as_view(
+        template_name='swagger_auth.html',
+        extra_context={'title': 'API de Caritas - Swagger UI'}
+    ), name='swagger-auth'),
 ]
