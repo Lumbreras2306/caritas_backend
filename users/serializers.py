@@ -235,8 +235,16 @@ class PhoneVerificationSendSerializer(serializers.Serializer):
 
 class PhoneVerificationCheckSerializer(serializers.Serializer):
     """Serializer para verificar código SMS con Twilio Verify"""
-    phone_number = serializers.CharField(max_length=17, validators=[phone_regex])
-    code = serializers.CharField(max_length=6, min_length=6)
+    phone_number = serializers.CharField(
+        max_length=17, 
+        validators=[phone_regex],
+        help_text="Número de teléfono en formato internacional (ej: +52811908593)"
+    )
+    code = serializers.CharField(
+        max_length=6, 
+        min_length=6,
+        help_text="Código de 6 dígitos enviado por SMS"
+    )
     
     def validate_phone_number(self, value):
         if not validate_phone_number(value):
@@ -273,3 +281,68 @@ class BulkUserDeactivationSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("La lista de IDs no puede estar vacía")
         return value
+
+# ============================================================================
+# SERIALIZERS PARA RESPUESTAS DE VERIFICACIÓN
+# ============================================================================
+
+class UserInfoSerializer(serializers.Serializer):
+    """Serializer para información del usuario en respuestas de verificación"""
+    id = serializers.UUIDField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    phone_number = serializers.CharField(read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+    approved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+class VerificationSuccessResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta exitosa de verificación"""
+    message = serializers.CharField(read_only=True)
+    token = serializers.CharField(read_only=True)
+    user = UserInfoSerializer(read_only=True)
+
+class VerificationErrorResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de error de verificación"""
+    message = serializers.CharField(read_only=True)
+    error = serializers.CharField(read_only=True, allow_null=True)
+
+# ============================================================================
+# SERIALIZERS ESPECÍFICOS PARA DOCUMENTACIÓN DE SWAGGER
+# ============================================================================
+
+class VerificationSuccessResponseDocSerializer(serializers.Serializer):
+    """Serializer específico para documentación de respuesta exitosa"""
+    message = serializers.CharField(read_only=True, help_text="Mensaje de confirmación")
+    token = serializers.CharField(read_only=True, help_text="Token de autenticación generado")
+    user = UserInfoSerializer(read_only=True, help_text="Información del usuario autenticado")
+    
+    class Meta:
+        example = {
+            "message": "Código verificado exitosamente",
+            "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
+            "user": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "first_name": "Juan",
+                "last_name": "Pérez",
+                "phone_number": "+52811908593",
+                "is_active": True,
+                "approved_at": "2024-01-15T10:30:00Z"
+            }
+        }
+
+class VerificationErrorResponseDocSerializer(serializers.Serializer):
+    """Serializer específico para documentación de respuesta de error"""
+    message = serializers.CharField(read_only=True, help_text="Mensaje de error")
+    error = serializers.CharField(read_only=True, allow_null=True, help_text="Código de error específico")
+    
+    class Meta:
+        examples = [
+            {
+                "message": "Código de verificación inválido",
+                "error": "INVALID_CODE"
+            },
+            {
+                "message": "No existe un usuario con este número de teléfono",
+                "error": "USER_NOT_FOUND"
+            }
+        ]

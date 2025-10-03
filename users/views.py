@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.db import transaction
 
 # DRF Spectacular imports para documentación automática
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, OpenApiExample, extend_schema_serializer
 from drf_spectacular.types import OpenApiTypes
 
 from .models import CustomUser, PreRegisterUser, AdminUser, STATUS_CHOICES
@@ -19,9 +19,12 @@ from .serializers import (
     AdminUserLoginSerializer, AdminUserPasswordChangeSerializer, 
     PreRegisterVerificationSerializer, PhoneVerificationSendSerializer,
     PhoneVerificationCheckSerializer, BulkPreRegisterApprovalSerializer,
-    BulkUserDeactivationSerializer
+    BulkUserDeactivationSerializer, VerificationSuccessResponseSerializer,
+    VerificationErrorResponseSerializer, VerificationSuccessResponseDocSerializer,
+    VerificationErrorResponseDocSerializer
 )
 from .twilio_verify_service import twilio_verify_service
+
 
 # ============================================================================
 # VIEWSETS PARA USUARIOS PRE-REGISTRO
@@ -378,22 +381,13 @@ class PhoneVerificationViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=['Phone Verification'],
         summary="Verificar código SMS",
-        description="Verifica el código SMS y retorna token de autenticación",
+        description="Verifica el código SMS enviado al número de teléfono y retorna un token de autenticación si la verificación es exitosa. El token puede ser usado para autenticar futuras peticiones a la API.",
         request=PhoneVerificationCheckSerializer,
         responses={
-            200: OpenApiResponse(description="Código verificado exitosamente, token generado"),
-            400: OpenApiResponse(description="Código inválido"),
-            404: OpenApiResponse(description="Usuario no encontrado"),
-        },
-        examples=[
-            OpenApiExample(
-                'Verificar código',
-                value={
-                    "phone_number": "+52811908593",
-                    "code": "123456"
-                }
-            )
-        ]
+            200: VerificationSuccessResponseDocSerializer,
+            400: VerificationErrorResponseDocSerializer,
+            404: VerificationErrorResponseDocSerializer,
+        }
     )
     @action(detail=False, methods=['post'])
     def verify(self, request):
