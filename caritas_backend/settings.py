@@ -12,23 +12,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # CONFIGURACIÓN DE SEGURIDAD
 # ============================================================================
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-(gqx4$3lehmu95g$!slo*z(uj#su^#fmzp5@m0h*w7+1=_473u')
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
-
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,20.246.91.21', cast=Csv())
 
 # ============================================================================
 # CONFIGURACIÓN DE TWILIO VERIFY
 # ============================================================================
-
-# Twilio Configuration - Usando variables oficiales
-# Variables de entorno requeridas:
-# TWILIO_ACCOUNT_SID=SID (Tu Account SID de Twilio)
-# TWILIO_AUTH_TOKEN=TOKEN (Tu Auth Token de Twilio)
-# TWILIO_VERIFY_SERVICE_SID=SERVICE_SID (Tu Verify Service SID)
 
 TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
 TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
@@ -69,7 +59,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ============================================================================
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Debe estar al principio
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -115,8 +105,7 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='password123'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432', cast=int),
-        'OPTIONS': {
-        },
+        'OPTIONS': {},
     }
 }
 
@@ -161,7 +150,6 @@ STATIC_ROOT = config('STATIC_ROOT', default=BASE_DIR / 'staticfiles')
 MEDIA_URL = config('MEDIA_URL', default='/media/')
 MEDIA_ROOT = config('MEDIA_ROOT', default=BASE_DIR / 'media')
 
-# Directorios adicionales para archivos estáticos
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
@@ -170,35 +158,28 @@ STATICFILES_DIRS = [
 # CONFIGURACIÓN DEL MODELO DE USUARIO
 # ============================================================================
 
-# Modelo de usuario personalizado para administradores
 AUTH_USER_MODEL = 'users.AdminUser'
-
-# Campo de auto incremento por defecto
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ============================================================================
 # CONFIGURACIÓN DE CORS
 # ============================================================================
 
-# Configuración CORS para desarrollo
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Solo en desarrollo
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# URLs permitidas en producción
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:3000",  # React dev server alternativo
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:8001",  # Backend en puerto 8001
+    "http://localhost:8001",
     "http://127.0.0.1:8001",
-    "http://20.246.91.21:8001",  # IP externa en puerto 8001
-    "http://20.246.91.21",  # IP externa sin puerto
+    "http://20.246.91.21:8001",
+    "http://20.246.91.21",
 ]
 
-# Permitir credenciales
 CORS_ALLOW_CREDENTIALS = True
 
-# Headers permitidos
 CORS_ALLOWED_HEADERS = [
     'accept',
     'accept-encoding',
@@ -216,99 +197,126 @@ CORS_ALLOWED_HEADERS = [
 # ============================================================================
 
 REST_FRAMEWORK = {
-    # Configuración de autenticación
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'users.authentication.CustomTokenAuthentication',  # Autenticación personalizada para ambos tipos de usuarios
-        'rest_framework.authentication.SessionAuthentication',
+        'users.authentication.CustomTokenAuthentication',
     ],
+
+    # Configuración específica para evitar conflictos con documentación
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     
-    # Configuración de permisos
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+
+    # Configuración específica para documentación
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     
-    # Configuración de filtros
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
     
-    # Configuración de paginación
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     
-    # Configuración de renderizado
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     
-    # Configuración de parsers
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
     
-    # Manejo de excepciones
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
-    
-    # Configuración de esquema
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # ============================================================================
-# CONFIGURACIÓN DE DRF SPECTACULAR (SWAGGER AUTOMÁTICO)
+# CONFIGURACIÓN DE DRF SPECTACULAR (SWAGGER)
 # ============================================================================
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'API de Caritas Monterrey',
     'DESCRIPTION': '''
-    Sistema de Gestión de Albergues - API REST completa
-    
-    ## 🔐 Autenticación
-    
-    Esta API utiliza autenticación por **Token de Administrador**. Para usar los endpoints protegidos:
-    
-    1. **Obtener Token**: Usa el endpoint `/api/users/auth/admin-login/` con tus credenciales de administrador
-    2. **Usar Token**: Incluye el token en el header `Authorization: Token <tu_token>`
-    3. **Ejemplo**: `Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`
-    
-    ## 📋 Endpoints Públicos (No requieren autenticación)
-    - `POST /api/users/pre-register/` - Crear pre-registro
-    - `POST /api/users/pre-register/verify-phone/` - Verificar teléfono
-    - `POST /api/users/phone-verification/send/` - Enviar código SMS
-    - `POST /api/users/phone-verification/verify/` - Verificar código SMS
-    
-    ## 🔒 Endpoints Protegidos (Requieren token de administrador)
-    - Todos los demás endpoints requieren autenticación
-    - Usa el botón "Authorize" en la esquina superior derecha para configurar tu token
+# Sistema de Gestión de Albergues - API REST
+
+## 🔐 Autenticación
+
+Esta API utiliza autenticación por **Token**. Para usar los endpoints protegidos:
+
+1. **Obtener Token de Administrador**: 
+   - Endpoint: `POST /api/users/auth/admin-login/`
+   - Body: `{"username": "tu_usuario", "password": "tu_contraseña"}`
+   - Respuesta: `{"token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b", ...}`
+
+2. **Obtener Token de Usuario Final**:
+   - Endpoint: `POST /api/users/phone-verification/verify/`
+   - Body: `{"phone_number": "+52811908593", "code": "123456"}`
+   - Respuesta: `{"token": "abc123...", "user": {...}}`
+
+3. **Usar Token**: 
+   - Header: `Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`
+   - Click en el botón **"Authorize"** arriba y pega tu token
+
+## 📋 Endpoints Públicos (No requieren autenticación)
+
+- `POST /api/users/pre-register/` - Crear pre-registro
+- `POST /api/users/pre-register/verify-phone/` - Verificar teléfono
+- `POST /api/users/phone-verification/send/` - Enviar código SMS
+- `POST /api/users/phone-verification/verify/` - Verificar código SMS
+- `POST /api/users/auth/admin-login/` - Login de administrador
+
+## 🔒 Endpoints Protegidos
+
+Todos los demás endpoints requieren autenticación con token.
+
+## 📚 Módulos Disponibles
+
+- **Usuarios**: Pre-registros, usuarios finales, administradores
+- **Albergues**: Ubicaciones, albergues, reservas de alojamiento
+- **Servicios**: Servicios, horarios, reservas de servicios
+- **Inventario**: Artículos, inventarios, control de stock
+
+## 🚀 Características
+
+- Autenticación con tokens
+- Verificación SMS con Twilio
+- Paginación automática (20 items por página)
+- Filtros y búsqueda en todos los endpoints
+- Operaciones masivas (aprobar, desactivar, etc.)
     ''',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SCHEMA_PATH_PREFIX': r'/api/',
+    
+    # Configuración de componentes
     'COMPONENT_SPLIT_REQUEST': True,
     'SORT_OPERATIONS': True,
     'COMPONENT_SPLIT_PATCH': True,
     'COMPONENT_NO_READ_ONLY_REQUIRED': True,
-    'OPERATION_ID_GENERATOR': 'drf_spectacular.utils.camelize_operation_id',
+    
+    # Tags personalizados
     'TAGS': [
-        {'name': 'Pre-Register Users', 'description': 'Gestión de pre-registros de usuarios'},
-        {'name': 'Custom Users', 'description': 'Gestión de usuarios finales del sistema'},
-        {'name': 'Admin Users', 'description': 'Gestión de usuarios administradores'},
-        {'name': 'Phone Verification', 'description': 'Verificación de números de teléfono'},
-        {'name': 'Authentication', 'description': 'Autenticación y login/logout'},
-        {'name': 'Albergues', 'description': 'Gestión de albergues, ubicaciones y reservas'},
-        {'name': 'Servicios', 'description': 'Gestión de servicios y reservas de servicios'},
-        {'name': 'Inventario', 'description': 'Gestión de inventario y artículos'},
+        {'name': 'Authentication', 'description': '🔐 Autenticación y login/logout'},
+        {'name': 'Phone Verification', 'description': '📱 Verificación de teléfonos con SMS'},
+        {'name': 'Pre-Register Users', 'description': '📝 Gestión de pre-registros de usuarios'},
+        {'name': 'Custom Users', 'description': '👤 Gestión de usuarios finales del sistema'},
+        {'name': 'Admin Users', 'description': '👨‍💼 Gestión de usuarios administradores'},
+        {'name': 'Albergues', 'description': '🏠 Gestión de albergues, ubicaciones y reservas'},
+        {'name': 'Servicios', 'description': '🍽️ Gestión de servicios y reservas'},
+        {'name': 'Inventario', 'description': '📦 Gestión de inventario y artículos'},
     ],
+    
+    # Configuración de seguridad - Solo mostrar TokenAuth
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
-    'SERVE_AUTHENTICATION': None,
-    'ENUM_NAME_OVERRIDES': {
-        'StatusF02Enum': 'StatusEnum',
-        'StatusDb8Enum': 'StatusEnum',
-    },
+    'SERVE_AUTHENTICATION': ['users.authentication.CustomTokenAuthentication'],
+    'SERVE_AUTHENTICATION_CLASSES': ['users.authentication.CustomTokenAuthentication'],
+    
+    # Configuración de Swagger UI
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
         'persistAuthorization': True,
@@ -317,17 +325,19 @@ SPECTACULAR_SETTINGS = {
         'showExtensions': True,
         'showCommonExtensions': True,
         'tryItOutEnabled': True,
-        'requestInterceptor': '''
-        function(request) {
-            // Agregar token automáticamente si está disponible
-            const token = localStorage.getItem('swagger-ui-token');
-            if (token) {
-                request.headers['Authorization'] = 'Token ' + token;
-            }
-            return request;
-        }
-        ''',
+        'syntaxHighlight.theme': 'monokai',
+        'defaultModelsExpandDepth': 3,
+        'defaultModelExpandDepth': 3,
+        'displayRequestDuration': True,
+        'docExpansion': 'list',
+        'operationsSorter': 'alpha',
+        'tagsSorter': 'alpha',
+        # Configuración específica para mostrar solo TokenAuth
+        'supportedSubmitMethods': ['get', 'post', 'put', 'delete', 'patch'],
+        'showRequestHeaders': True,
     },
+    
+    # Configuración de ReDoc
     'REDOC_UI_SETTINGS': {
         'hideDownloadButton': False,
         'hideHostname': False,
@@ -336,35 +346,51 @@ SPECTACULAR_SETTINGS = {
         'theme': {
             'colors': {
                 'primary': {
-                    'main': '#32329f'
+                    'main': '#667eea'
                 }
+            },
+            'typography': {
+                'fontSize': '14px',
+                'fontFamily': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
             }
         }
     },
-    # Configuración de esquemas de seguridad
-    'SECURITY_DEFINITIONS': {
-        'Token': {
-            'type': 'apiKey',
-            'in': 'header',
-            'name': 'Authorization',
-            'description': 'Token de autenticación de administrador. Formato: Token <tu_token>'
+    
+    # Esquemas de autenticación - Solo mostrar TokenAuth
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'TokenAuth': {
+                'type': 'apiKey',
+                'in': 'header',
+                'name': 'Authorization',
+                'description': 'Token de autenticación. Formato: `Token <tu_token>` (válido para usuarios finales y administradores)'
+            }
         }
     },
-    'SECURITY': [
-        {
-            'Token': []
-        }
+
+    'SECURITY': [{'TokenAuth': []}],  # Aplicar TokenAuth globalmente
+
+    # Deshabilitar generación automática de esquemas de seguridad
+    'COMPONENT_SPLIT_REQUEST': True,
+    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+    'DISABLE_ERRORS_AND_WARNINGS': False,
+    
+    # Preprocessing - Personalizar esquemas de seguridad
+    'PREPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.preprocess_exclude_path_format',
+        'caritas_backend.hooks.custom_preprocessing_hook',
     ],
-    # Configuración para mostrar esquemas de seguridad en operaciones
-    'AUTHENTICATION_WHITELIST': [
-        'users.authentication.CustomTokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'caritas_backend.hooks.custom_postprocessing_hook',
     ],
-    'PARSER_WHITELIST': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
-    ],
+    
+    # Enum name overrides
+    'ENUM_NAME_OVERRIDES': {},
+    
+    # Configuración adicional
+    'CAMELIZE_NAMES': False,
+    'DISABLE_ERRORS_AND_WARNINGS': False,
 }
 
 # ============================================================================
@@ -415,34 +441,25 @@ LOGGING = {
     },
 }
 
-# Crear directorio de logs si no existe
 (BASE_DIR / 'logs').mkdir(exist_ok=True)
 
 # ============================================================================
 # CONFIGURACIÓN DE SEGURIDAD ADICIONAL
 # ============================================================================
 
-# Configuración de seguridad para producción
 if not DEBUG:
-    # HTTPS
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    
-    # Cookies seguras
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
-    # Headers de seguridad
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    
-    # HSTS
     SECURE_HSTS_SECONDS = 86400
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
 # ============================================================================
-# CONFIGURACIÓN DE CACHE (OPCIONAL)
+# CONFIGURACIÓN DE CACHE
 # ============================================================================
 
 CACHES = {
@@ -459,4 +476,3 @@ CACHES = {
         'LOCATION': 'caritas-cache',
     }
 }
-

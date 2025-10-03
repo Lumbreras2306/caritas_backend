@@ -16,7 +16,8 @@ from .models import Service, ServiceSchedule, HostelService, ReservationService
 from .serializers import (
     ServiceSerializer, ServiceScheduleSerializer, HostelServiceSerializer,
     ReservationServiceSerializer, ReservationServiceUpdateSerializer,
-    ReservationServiceDetailSerializer, BulkServiceReservationStatusUpdateSerializer
+    ReservationServiceDetailSerializer, BulkServiceReservationStatusUpdateSerializer,
+    ErrorResponseSerializer, SuccessResponseSerializer, BulkOperationResponseSerializer
 )
 
 # ============================================================================
@@ -27,18 +28,45 @@ from .serializers import (
     list=extend_schema(
         tags=['Servicios'],
         summary="Lista servicios",
-        description="Obtiene lista paginada de servicios disponibles (comida, aseo, etc.)",
+        description="Obtiene lista paginada de servicios disponibles (comida, aseo, etc.) con filtros y búsqueda",
         parameters=[
-            OpenApiParameter(name='is_active', type=OpenApiTypes.BOOL, description='Filtrar por estado activo'),
-            OpenApiParameter(name='reservation_type', type=OpenApiTypes.STR, enum=['individual', 'group'], description='Filtrar por tipo de reserva'),
-            OpenApiParameter(name='needs_approval', type=OpenApiTypes.BOOL, description='Filtrar por necesidad de aprobación'),
-            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre y descripción'),
-        ]
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                description='Filtrar por estado activo'
+            ),
+            OpenApiParameter(
+                name='reservation_type',
+                type=OpenApiTypes.STR,
+                enum=['individual', 'group'],
+                description='Filtrar por tipo de reserva'
+            ),
+            OpenApiParameter(
+                name='needs_approval',
+                type=OpenApiTypes.BOOL,
+                description='Filtrar por necesidad de aprobación'
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                description='Busca en nombre y descripción'
+            ),
+        ],
+        responses={
+            200: ServiceSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Servicios'],
         summary="Crear servicio",
         description="Crea un nuevo servicio disponible en el sistema",
+        request=ServiceSerializer,
+        responses={
+            201: ServiceSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Servicio de comida',
@@ -49,7 +77,8 @@ from .serializers import (
                     "reservation_type": "individual",
                     "needs_approval": False,
                     "max_time": 60
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Servicio de aseo',
@@ -60,14 +89,31 @@ from .serializers import (
                     "reservation_type": "individual",
                     "needs_approval": False,
                     "max_time": 30
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de servicio"),
-    update=extend_schema(tags=['Servicios'], summary="Actualizar servicio"),
-    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar servicio parcial"),
-    destroy=extend_schema(tags=['Servicios'], summary="Eliminar servicio"),
+    retrieve=extend_schema(
+        tags=['Servicios'],
+        summary="Detalle de servicio",
+        responses={200: ServiceSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar servicio",
+        responses={200: ServiceSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar servicio parcial",
+        responses={200: ServiceSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Servicios'],
+        summary="Eliminar servicio",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class ServiceViewSet(viewsets.ModelViewSet):
     """
@@ -100,8 +146,8 @@ class ServiceViewSet(viewsets.ModelViewSet):
         summary="Estadísticas de servicios",
         description="Obtiene estadísticas generales de todos los servicios del sistema",
         responses={
-            200: OpenApiResponse(description="Estadísticas obtenidas exitosamente"),
-            401: OpenApiResponse(description="No autorizado"),
+            200: SuccessResponseSerializer,
+            401: ErrorResponseSerializer,
         }
     )
     @action(detail=False, methods=['get'])
@@ -195,10 +241,64 @@ class ServiceViewSet(viewsets.ModelViewSet):
     partial_update=extend_schema(tags=['Servicios'], summary="Actualizar horario parcial"),
     destroy=extend_schema(tags=['Servicios'], summary="Eliminar horario"),
 )
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Servicios'],
+        summary="Lista horarios de servicios",
+        description="Obtiene lista paginada de horarios de servicios disponibles con filtros y búsqueda",
+        parameters=[
+            OpenApiParameter(
+                name='day_of_week',
+                type=OpenApiTypes.INT,
+                description='Filtrar por día de la semana (0=lunes, 6=domingo)'
+            ),
+            OpenApiParameter(
+                name='is_available',
+                type=OpenApiTypes.BOOL,
+                description='Filtrar por disponibilidad'
+            ),
+        ],
+        responses={
+            200: ServiceScheduleSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
+    ),
+    create=extend_schema(
+        tags=['Servicios'],
+        summary="Crear horario de servicio",
+        description="Crea un nuevo horario para un servicio específico",
+        request=ServiceScheduleSerializer,
+        responses={
+            201: ServiceScheduleSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        }
+    ),
+    retrieve=extend_schema(
+        tags=['Servicios'],
+        summary="Detalle de horario de servicio",
+        responses={200: ServiceScheduleSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar horario de servicio",
+        responses={200: ServiceScheduleSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar horario parcial",
+        responses={200: ServiceScheduleSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Servicios'],
+        summary="Eliminar horario de servicio",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
+)
 class ServiceScheduleViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestión de horarios de servicios.
-    
+
     Los horarios definen cuándo están disponibles los servicios
     durante la semana, con horarios específicos por día.
     """
@@ -229,18 +329,44 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=['Servicios'],
         summary="Lista servicios de albergues",
-        description="Obtiene lista de servicios asignados a albergues específicos",
+        description="Obtiene lista de servicios asignados a albergues específicos con filtros y búsqueda",
         parameters=[
-            OpenApiParameter(name='hostel', type=OpenApiTypes.UUID, description='Filtrar por albergue'),
-            OpenApiParameter(name='service', type=OpenApiTypes.UUID, description='Filtrar por servicio'),
-            OpenApiParameter(name='is_active', type=OpenApiTypes.BOOL, description='Filtrar por estado activo'),
-            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre del albergue y servicio'),
-        ]
+            OpenApiParameter(
+                name='hostel',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por albergue específico'
+            ),
+            OpenApiParameter(
+                name='service',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por servicio específico'
+            ),
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                description='Filtrar por estado activo'
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                description='Busca en nombre del albergue y servicio'
+            ),
+        ],
+        responses={
+            200: HostelServiceSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Servicios'],
         summary="Asignar servicio a albergue",
         description="Asigna un servicio específico a un albergue",
+        request=HostelServiceSerializer,
+        responses={
+            201: HostelServiceSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Asignar servicio de comida',
@@ -249,14 +375,31 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
                     "service": "123e4567-e89b-12d3-a456-426614174001",
                     "schedule": "123e4567-e89b-12d3-a456-426614174002",
                     "is_active": True
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de servicio de albergue"),
-    update=extend_schema(tags=['Servicios'], summary="Actualizar servicio de albergue"),
-    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar servicio parcial"),
-    destroy=extend_schema(tags=['Servicios'], summary="Eliminar servicio de albergue"),
+    retrieve=extend_schema(
+        tags=['Servicios'],
+        summary="Detalle de servicio de albergue",
+        responses={200: HostelServiceSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar servicio de albergue",
+        responses={200: HostelServiceSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar servicio parcial",
+        responses={200: HostelServiceSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Servicios'],
+        summary="Eliminar servicio de albergue",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class HostelServiceViewSet(viewsets.ModelViewSet):
     """
@@ -289,19 +432,15 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
         summary="Servicios por albergue",
         description="Obtiene servicios agrupados por albergue o de un albergue específico",
         parameters=[
-            OpenApiParameter(name='hostel', type=OpenApiTypes.UUID, description='ID del albergue específico (opcional)'),
+            OpenApiParameter(
+                name='hostel',
+                type=OpenApiTypes.UUID,
+                description='ID del albergue específico (opcional)'
+            ),
         ],
         responses={
-            200: OpenApiResponse(description="Servicios obtenidos exitosamente"),
-        },
-        # examples=[
-        #     OpenApiExample(
-        #         'Consulta por albergue',
-        #         description='Ver servicios de un albergue específico',
-        #         parameter_only={'hostel': '123e4567-e89b-12d3-a456-426614174000'},
-        #         request_only=False
-        #     )
-        # ]
+            200: SuccessResponseSerializer,
+        }
     )
     @action(detail=False, methods=['get'])
     def by_hostel(self, request):
@@ -348,19 +487,51 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=['Servicios'],
         summary="Lista reservas de servicios",
-        description="Obtiene lista paginada de reservas de servicios (comida, duchas, etc.)",
+        description="Obtiene lista paginada de reservas de servicios (comida, duchas, etc.) con filtros y búsqueda",
         parameters=[
-            OpenApiParameter(name='status', type=OpenApiTypes.STR, enum=['pending', 'confirmed', 'cancelled', 'rejected', 'completed', 'in_progress'], description='Filtrar por estado'),
-            OpenApiParameter(name='type', type=OpenApiTypes.STR, enum=['individual', 'group'], description='Filtrar por tipo'),
-            OpenApiParameter(name='service__hostel', type=OpenApiTypes.UUID, description='Filtrar por albergue'),
-            OpenApiParameter(name='service__service', type=OpenApiTypes.UUID, description='Filtrar por servicio'),
-            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre del usuario, servicio y albergue'),
-        ]
+            OpenApiParameter(
+                name='status',
+                type=OpenApiTypes.STR,
+                enum=['pending', 'confirmed', 'cancelled', 'rejected', 'completed', 'in_progress'],
+                description='Filtrar por estado'
+            ),
+            OpenApiParameter(
+                name='type',
+                type=OpenApiTypes.STR,
+                enum=['individual', 'group'],
+                description='Filtrar por tipo'
+            ),
+            OpenApiParameter(
+                name='service__hostel',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por albergue'
+            ),
+            OpenApiParameter(
+                name='service__service',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por servicio'
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                description='Busca en nombre del usuario, servicio y albergue'
+            ),
+        ],
+        responses={
+            200: ReservationServiceSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Servicios'],
         summary="Crear reserva de servicio",
         description="Crea una nueva reserva de servicio para un usuario",
+        request=ReservationServiceSerializer,
+        responses={
+            201: ReservationServiceSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Reserva de comida individual',
@@ -371,7 +542,8 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
                     "datetime_reserved": "2024-01-15T12:00:00Z",
                     "men_quantity": 1,
                     "women_quantity": 0
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Reserva de duchas grupal',
@@ -382,14 +554,31 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
                     "datetime_reserved": "2024-01-15T08:00:00Z",
                     "men_quantity": 2,
                     "women_quantity": 3
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Servicios'], summary="Detalle de reserva de servicio"),
-    update=extend_schema(tags=['Servicios'], summary="Actualizar reserva de servicio"),
-    partial_update=extend_schema(tags=['Servicios'], summary="Actualizar reserva parcial"),
-    destroy=extend_schema(tags=['Servicios'], summary="Eliminar reserva de servicio"),
+    retrieve=extend_schema(
+        tags=['Servicios'],
+        summary="Detalle de reserva de servicio",
+        responses={200: ReservationServiceSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar reserva de servicio",
+        responses={200: ReservationServiceSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Servicios'],
+        summary="Actualizar reserva parcial",
+        responses={200: ReservationServiceSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Servicios'],
+        summary="Eliminar reserva de servicio",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class ReservationServiceViewSet(viewsets.ModelViewSet):
     """
@@ -432,9 +621,21 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         summary="Mis reservas de servicios",
         description="Obtiene las reservas de servicios del usuario actual. Los administradores ven todas las reservas.",
         parameters=[
-            OpenApiParameter(name='status', type=OpenApiTypes.STR, enum=['pending', 'confirmed', 'cancelled', 'completed'], description='Filtrar por estado'),
-            OpenApiParameter(name='datetime_reserved', type=OpenApiTypes.DATETIME, description='Filtrar por fecha/hora de reserva'),
-        ]
+            OpenApiParameter(
+                name='status',
+                type=OpenApiTypes.STR,
+                enum=['pending', 'confirmed', 'cancelled', 'completed'],
+                description='Filtrar por estado'
+            ),
+            OpenApiParameter(
+                name='datetime_reserved',
+                type=OpenApiTypes.DATETIME,
+                description='Filtrar por fecha/hora de reserva'
+            ),
+        ],
+        responses={
+            200: ReservationServiceSerializer(many=True),
+        }
     )
     @action(detail=False, methods=['get'])
     def my_reservations(self, request):
@@ -461,8 +662,15 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         summary="Reservas próximas",
         description="Obtiene reservas de servicios en las próximas 24 horas",
         parameters=[
-            OpenApiParameter(name='hours', type=OpenApiTypes.INT, description='Horas hacia adelante para buscar (default: 24)'),
-        ]
+            OpenApiParameter(
+                name='hours',
+                type=OpenApiTypes.INT,
+                description='Horas hacia adelante para buscar (default: 24)'
+            ),
+        ],
+        responses={
+            200: SuccessResponseSerializer,
+        }
     )
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
@@ -494,9 +702,9 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         description="Actualiza el estado de múltiples reservas de servicios de forma masiva",
         request=BulkServiceReservationStatusUpdateSerializer,
         responses={
-            200: OpenApiResponse(description="Reservas actualizadas exitosamente"),
-            400: OpenApiResponse(description="Datos inválidos"),
-            500: OpenApiResponse(description="Error interno del servidor"),
+            200: BulkOperationResponseSerializer,
+            400: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
         },
         examples=[
             OpenApiExample(
@@ -507,7 +715,8 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
                         "123e4567-e89b-12d3-a456-426614174001"
                     ],
                     "status": "confirmed"
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Marcar en progreso',
@@ -516,7 +725,8 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
                         "123e4567-e89b-12d3-a456-426614174002"
                     ],
                     "status": "in_progress"
-                }
+                },
+                request_only=True,
             )
         ]
     )

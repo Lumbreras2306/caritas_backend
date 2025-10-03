@@ -5,6 +5,25 @@ from .models import Item, Inventory, InventoryItem
 from albergues.models import Hostel
 
 # ============================================================================
+# SERIALIZERS DE RESPUESTAS ESTÁNDAR
+# ============================================================================
+
+class ErrorResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas de error estándar"""
+    error = serializers.CharField(help_text="Mensaje de error")
+    detail = serializers.CharField(required=False, help_text="Detalle adicional del error")
+
+class SuccessResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas exitosas estándar"""
+    message = serializers.CharField(help_text="Mensaje de éxito")
+    data = serializers.DictField(required=False, help_text="Datos adicionales")
+
+class BulkOperationResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de operaciones masivas"""
+    message = serializers.CharField(help_text="Mensaje descriptivo de la operación")
+    updated_count = serializers.IntegerField(help_text="Cantidad de registros actualizados")
+
+# ============================================================================
 # SERIALIZERS PARA ARTÍCULOS
 # ============================================================================
 

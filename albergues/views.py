@@ -5,17 +5,20 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, F
 
-# DRF Spectacular imports para documentación automática
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    extend_schema, extend_schema_view, OpenApiParameter, 
+    OpenApiResponse, OpenApiExample, OpenApiTypes
+)
 
 from .models import Location, Hostel, HostelReservation
 from .serializers import (
     LocationSerializer, HostelSerializer, HostelCreateSerializer,
     HostelReservationSerializer, HostelReservationUpdateSerializer,
-    BulkStatusUpdateSerializer
+    BulkStatusUpdateSerializer, ErrorResponseSerializer, SuccessResponseSerializer,
+    BulkOperationResponseSerializer, HostelAvailabilityResponseSerializer,
+    NearbyHostelsResponseSerializer
 )
 
 # ============================================================================
@@ -32,12 +35,22 @@ from .serializers import (
             OpenApiParameter(name='state', type=OpenApiTypes.STR, description='Filtrar por estado'),
             OpenApiParameter(name='country', type=OpenApiTypes.STR, description='Filtrar por país'),
             OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en dirección, ciudad, estado, landmarks'),
-        ]
+        ],
+        responses={
+            200: LocationSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Albergues'],
         summary="Crear ubicación",
         description="Crea una nueva ubicación geográfica",
+        request=LocationSerializer,
+        responses={
+            201: LocationSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Ubicación ejemplo',
@@ -49,14 +62,31 @@ from .serializers import (
                     "state": "Ciudad de México",
                     "zip_code": "01000",
                     "landmarks": "Cerca del metro Zócalo"
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Albergues'], summary="Detalle de ubicación"),
-    update=extend_schema(tags=['Albergues'], summary="Actualizar ubicación"),
-    partial_update=extend_schema(tags=['Albergues'], summary="Actualizar ubicación parcial"),
-    destroy=extend_schema(tags=['Albergues'], summary="Eliminar ubicación"),
+    retrieve=extend_schema(
+        tags=['Albergues'], 
+        summary="Detalle de ubicación",
+        responses={200: LocationSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Albergues'], 
+        summary="Actualizar ubicación",
+        responses={200: LocationSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Albergues'], 
+        summary="Actualizar ubicación parcial",
+        responses={200: LocationSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Albergues'], 
+        summary="Eliminar ubicación",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class LocationViewSet(viewsets.ModelViewSet):
     """
@@ -75,12 +105,10 @@ class LocationViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def perform_create(self, serializer):
-        """Personalizar creación de ubicación"""
         instance = serializer.save(created_by=self.request.user)
         return instance
 
     def perform_update(self, serializer):
-        """Personalizar actualización de ubicación"""
         instance = serializer.save(updated_by=self.request.user)
         return instance
 
@@ -98,12 +126,22 @@ class LocationViewSet(viewsets.ModelViewSet):
             OpenApiParameter(name='location__city', type=OpenApiTypes.STR, description='Filtrar por ciudad'),
             OpenApiParameter(name='location__state', type=OpenApiTypes.STR, description='Filtrar por estado'),
             OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre, teléfono, dirección'),
-        ]
+        ],
+        responses={
+            200: HostelSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Albergues'],
         summary="Crear albergue",
         description="Crea un nuevo albergue con su ubicación",
+        request=HostelCreateSerializer,
+        responses={
+            201: HostelSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Albergue ejemplo',
@@ -120,14 +158,31 @@ class LocationViewSet(viewsets.ModelViewSet):
                         "state": "Ciudad de México",
                         "zip_code": "01000"
                     }
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Albergues'], summary="Detalle de albergue"),
-    update=extend_schema(tags=['Albergues'], summary="Actualizar albergue"),
-    partial_update=extend_schema(tags=['Albergues'], summary="Actualizar albergue parcial"),
-    destroy=extend_schema(tags=['Albergues'], summary="Eliminar albergue"),
+    retrieve=extend_schema(
+        tags=['Albergues'], 
+        summary="Detalle de albergue",
+        responses={200: HostelSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Albergues'], 
+        summary="Actualizar albergue",
+        responses={200: HostelSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Albergues'], 
+        summary="Actualizar albergue parcial",
+        responses={200: HostelSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Albergues'], 
+        summary="Eliminar albergue",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class HostelViewSet(viewsets.ModelViewSet):
     """
@@ -146,18 +201,15 @@ class HostelViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_serializer_class(self):
-        """Usar serializer diferente para creación"""
         if self.action == 'create':
             return HostelCreateSerializer
         return HostelSerializer
 
     def perform_create(self, serializer):
-        """Personalizar creación de albergue"""
         instance = serializer.save(created_by=self.request.user)
         return instance
 
     def perform_update(self, serializer):
-        """Personalizar actualización de albergue"""
         instance = serializer.save(updated_by=self.request.user)
         return instance
 
@@ -166,22 +218,31 @@ class HostelViewSet(viewsets.ModelViewSet):
         summary="Buscar albergues cercanos",
         description="Busca albergues cercanos a una ubicación específica usando coordenadas GPS",
         parameters=[
-            OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, required=True, description='Latitud de referencia'),
-            OpenApiParameter(name='lng', type=OpenApiTypes.FLOAT, required=True, description='Longitud de referencia'),
-            OpenApiParameter(name='radius', type=OpenApiTypes.FLOAT, description='Radio de búsqueda en kilómetros (default: 10)')
+            OpenApiParameter(
+                name='lat', 
+                type=OpenApiTypes.FLOAT, 
+                required=True, 
+                description='Latitud de referencia',
+                location=OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                name='lng', 
+                type=OpenApiTypes.FLOAT, 
+                required=True, 
+                description='Longitud de referencia',
+                location=OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                name='radius', 
+                type=OpenApiTypes.FLOAT, 
+                description='Radio de búsqueda en kilómetros (default: 10)',
+                location=OpenApiParameter.QUERY
+            )
         ],
         responses={
-            200: OpenApiResponse(description="Albergues cercanos encontrados"),
-            400: OpenApiResponse(description="Parámetros de ubicación inválidos"),
-        },
-        # examples=[
-        #     OpenApiExample(
-        #         'Búsqueda cercana',
-        #         description='Buscar albergues en un radio de 5km',
-        #         request_only=False,
-        #         parameter_only={'lat': 19.4326, 'lng': -99.1332, 'radius': 5}
-        #     )
-        # ]
+            200: NearbyHostelsResponseSerializer,
+            400: ErrorResponseSerializer,
+        }
     )
     @action(detail=False, methods=['get'])
     def nearby(self, request):
@@ -200,9 +261,8 @@ class HostelViewSet(viewsets.ModelViewSet):
             lat = float(lat)
             lng = float(lng)
             
-            # Filtro simple por proximidad (en una implementación real usarías PostGIS)
-            lat_range = radius / 111.0  # Aproximación: 1 grado ≈ 111 km
-            lng_range = radius / (111.0 * abs(float(lat)))  # Ajustar por latitud
+            lat_range = radius / 111.0
+            lng_range = radius / (111.0 * abs(float(lat)))
             
             hostels = self.get_queryset().filter(
                 location__latitude__range=(lat - lat_range, lat + lat_range),
@@ -229,21 +289,19 @@ class HostelViewSet(viewsets.ModelViewSet):
         summary="Consultar disponibilidad",
         description="Consulta la disponibilidad de espacios en un albergue para una fecha específica",
         parameters=[
-            OpenApiParameter(name='date', type=OpenApiTypes.DATE, required=True, description='Fecha para consultar (YYYY-MM-DD)')
+            OpenApiParameter(
+                name='date', 
+                type=OpenApiTypes.DATE, 
+                required=True, 
+                description='Fecha para consultar (YYYY-MM-DD)',
+                location=OpenApiParameter.QUERY
+            )
         ],
         responses={
-            200: OpenApiResponse(description="Disponibilidad obtenida exitosamente"),
-            400: OpenApiResponse(description="Formato de fecha inválido"),
-            404: OpenApiResponse(description="Albergue no encontrado"),
-        },
-        # examples=[
-        #     OpenApiExample(
-        #         'Consulta disponibilidad',
-        #         description='Verificar espacios disponibles para una fecha',
-        #         parameter_only={'date': '2024-01-15'},
-        #         request_only=False
-        #     )
-        # ]
+            200: HostelAvailabilityResponseSerializer,
+            400: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        }
     )
     @action(detail=True, methods=['get'])
     def availability(self, request, pk=None):
@@ -261,29 +319,20 @@ class HostelViewSet(viewsets.ModelViewSet):
             from datetime import datetime
             check_date = datetime.strptime(date_param, '%Y-%m-%d').date()
             
-            # Calcular reservas confirmadas para esa fecha
             reservations = HostelReservation.objects.filter(
                 hostel=hostel,
                 arrival_date=check_date,
                 status='confirmed'
             )
             
-            reserved_men = reservations.aggregate(
-                total=Sum('men_quantity')
-            )['total'] or 0
+            reserved_men = reservations.aggregate(total=Sum('men_quantity'))['total'] or 0
+            reserved_women = reservations.aggregate(total=Sum('women_quantity'))['total'] or 0
             
-            reserved_women = reservations.aggregate(
-                total=Sum('women_quantity')
-            )['total'] or 0
-            
-            # Calcular disponibilidad usando la capacidad actual del albergue
             men_total = hostel.men_capacity or 0
             women_total = hostel.women_capacity or 0
             men_current = hostel.current_men_capacity or 0
             women_current = hostel.current_women_capacity or 0
             
-            # La disponibilidad real es la capacidad total menos la capacidad actual
-            # menos las reservas confirmadas para esa fecha específica
             available_men = max(0, men_total - men_current - reserved_men)
             available_women = max(0, women_total - women_current - reserved_women)
             
@@ -332,17 +381,37 @@ class HostelViewSet(viewsets.ModelViewSet):
         summary="Lista reservas de alojamiento",
         description="Obtiene lista paginada de reservas de alojamiento en albergues",
         parameters=[
-            OpenApiParameter(name='status', type=OpenApiTypes.STR, enum=['pending', 'confirmed', 'cancelled', 'rejected', 'completed'], description='Filtrar por estado'),
-            OpenApiParameter(name='type', type=OpenApiTypes.STR, enum=['individual', 'group'], description='Filtrar por tipo'),
+            OpenApiParameter(
+                name='status', 
+                type=OpenApiTypes.STR, 
+                enum=['pending', 'confirmed', 'cancelled', 'rejected', 'completed'], 
+                description='Filtrar por estado'
+            ),
+            OpenApiParameter(
+                name='type', 
+                type=OpenApiTypes.STR, 
+                enum=['individual', 'group'], 
+                description='Filtrar por tipo'
+            ),
             OpenApiParameter(name='hostel', type=OpenApiTypes.UUID, description='Filtrar por albergue'),
             OpenApiParameter(name='arrival_date', type=OpenApiTypes.DATE, description='Filtrar por fecha de llegada'),
             OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre del usuario y albergue'),
-        ]
+        ],
+        responses={
+            200: HostelReservationSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Albergues'],
         summary="Crear reserva de alojamiento",
         description="Crea una nueva reserva de alojamiento en un albergue",
+        request=HostelReservationSerializer,
+        responses={
+            201: HostelReservationSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Reserva individual',
@@ -353,7 +422,8 @@ class HostelViewSet(viewsets.ModelViewSet):
                     "arrival_date": "2024-01-15",
                     "men_quantity": 1,
                     "women_quantity": 0
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Reserva grupal',
@@ -364,14 +434,31 @@ class HostelViewSet(viewsets.ModelViewSet):
                     "arrival_date": "2024-01-20",
                     "men_quantity": 3,
                     "women_quantity": 2
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Albergues'], summary="Detalle de reserva de alojamiento"),
-    update=extend_schema(tags=['Albergues'], summary="Actualizar reserva de alojamiento"),
-    partial_update=extend_schema(tags=['Albergues'], summary="Actualizar reserva parcial"),
-    destroy=extend_schema(tags=['Albergues'], summary="Eliminar reserva de alojamiento"),
+    retrieve=extend_schema(
+        tags=['Albergues'], 
+        summary="Detalle de reserva de alojamiento",
+        responses={200: HostelReservationSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Albergues'], 
+        summary="Actualizar reserva de alojamiento",
+        responses={200: HostelReservationSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Albergues'], 
+        summary="Actualizar reserva parcial",
+        responses={200: HostelReservationSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Albergues'], 
+        summary="Eliminar reserva de alojamiento",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class HostelReservationViewSet(viewsets.ModelViewSet):
     """
@@ -390,18 +477,15 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_serializer_class(self):
-        """Usar serializer diferente para actualización de status"""
         if self.action in ['partial_update', 'update'] and 'status' in self.request.data:
             return HostelReservationUpdateSerializer
         return HostelReservationSerializer
 
     def perform_create(self, serializer):
-        """Personalizar creación de reserva"""
         instance = serializer.save(created_by=self.request.user)
         return instance
 
     def perform_update(self, serializer):
-        """Personalizar actualización de reserva"""
         instance = serializer.save(updated_by=self.request.user)
         return instance
 
@@ -410,20 +494,27 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
         summary="Mis reservas de alojamiento",
         description="Obtiene las reservas de alojamiento del usuario actual. Los administradores ven todas las reservas.",
         parameters=[
-            OpenApiParameter(name='status', type=OpenApiTypes.STR, enum=['pending', 'confirmed', 'cancelled', 'completed'], description='Filtrar por estado'),
+            OpenApiParameter(
+                name='status', 
+                type=OpenApiTypes.STR, 
+                enum=['pending', 'confirmed', 'cancelled', 'completed'], 
+                description='Filtrar por estado'
+            ),
             OpenApiParameter(name='arrival_date', type=OpenApiTypes.DATE, description='Filtrar por fecha de llegada'),
-        ]
+        ],
+        responses={
+            200: HostelReservationSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     )
     @action(detail=False, methods=['get'])
     def my_reservations(self, request):
         """Obtener las reservas del usuario actual."""
-        # Si es administrador, puede ver todas, sino solo las suyas
         if hasattr(request.user, 'is_staff') and request.user.is_staff:
             reservations = self.get_queryset()
         else:
             reservations = self.get_queryset().filter(user=request.user)
         
-        # Aplicar filtros de la URL
         filtered_reservations = self.filter_queryset(reservations)
         
         page = self.paginate_queryset(filtered_reservations)
@@ -440,9 +531,9 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
         description="Actualiza el estado de múltiples reservas de alojamiento de forma masiva",
         request=BulkStatusUpdateSerializer,
         responses={
-            200: OpenApiResponse(description="Reservas actualizadas exitosamente"),
-            400: OpenApiResponse(description="Datos inválidos"),
-            500: OpenApiResponse(description="Error interno del servidor"),
+            200: BulkOperationResponseSerializer,
+            400: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
         },
         examples=[
             OpenApiExample(
@@ -453,35 +544,25 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
                         "123e4567-e89b-12d3-a456-426614174001"
                     ],
                     "status": "confirmed"
-                }
+                },
+                request_only=True,
             )
         ]
     )
     @action(detail=False, methods=['post'])
     def update_status(self, request):
         """Actualizar el estado de múltiples reservas."""
-        reservation_ids = request.data.get('reservation_ids', [])
-        new_status = request.data.get('status')
+        serializer = BulkStatusUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        if not reservation_ids or not new_status:
-            return Response(
-                {'error': 'Se requieren reservation_ids y status'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Validar que el status sea válido
-        valid_statuses = [choice[0] for choice in HostelReservation.ReservationStatus.choices]
-        if new_status not in valid_statuses:
-            return Response(
-                {'error': f'Status inválido. Opciones: {valid_statuses}'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        reservation_ids = serializer.validated_data['reservation_ids']
+        new_status = serializer.validated_data['status']
         
         try:
             with transaction.atomic():
                 reservations = HostelReservation.objects.filter(id__in=reservation_ids).select_related('hostel')
                 
-                # Actualizar cada reserva individualmente para manejar la capacidad
                 updated_count = 0
                 updated_reservations = []
                 
@@ -492,11 +573,10 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
                     reservation.updated_at = timezone.now()
                     reservation.save()
                     
-                    # Actualizar capacidad del albergue
                     self._update_hostel_capacity_for_reservation(reservation, old_status, new_status)
                     
                     updated_count += 1
-                    updated_reservations.append(reservation.id)
+                    updated_reservations.append(str(reservation.id))
                 
                 return Response({
                     'message': f'{updated_count} reservas actualizadas exitosamente',
@@ -512,25 +592,20 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
             )
     
     def _update_hostel_capacity_for_reservation(self, reservation, old_status, new_status):
-        """Actualizar la capacidad del albergue para una reserva específica"""
         hostel = reservation.hostel
         
-        # Si la reserva se confirma, agregar a la capacidad actual
         if old_status != 'confirmed' and new_status == 'confirmed':
             self._add_to_current_capacity(hostel, reservation)
         
-        # Si la reserva se cancela, rechaza o completa desde confirmada, quitar de la capacidad actual
         elif old_status == 'confirmed' and new_status in ['cancelled', 'rejected', 'completed']:
             self._remove_from_current_capacity(hostel, reservation)
     
     def _add_to_current_capacity(self, hostel, reservation):
-        """Agregar la cantidad de la reserva a la capacidad actual del albergue"""
         men_quantity = reservation.men_quantity or 0
         women_quantity = reservation.women_quantity or 0
         hostel.add_to_current_capacity(men_quantity, women_quantity)
     
     def _remove_from_current_capacity(self, hostel, reservation):
-        """Quitar la cantidad de la reserva de la capacidad actual del albergue"""
         men_quantity = reservation.men_quantity or 0
         women_quantity = reservation.women_quantity or 0
         hostel.remove_from_current_capacity(men_quantity, women_quantity)

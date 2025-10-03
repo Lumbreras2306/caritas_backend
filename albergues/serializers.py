@@ -4,14 +4,39 @@ from typing import Dict, Any, Tuple
 from .models import Location, Hostel, HostelReservation
 
 # ============================================================================
+# SERIALIZERS DE RESPUESTAS ESTÁNDAR
+# ============================================================================
+
+class ErrorResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas de error estándar"""
+    error = serializers.CharField(help_text="Mensaje de error")
+    detail = serializers.CharField(required=False, help_text="Detalle adicional del error")
+
+class SuccessResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas exitosas estándar"""
+    message = serializers.CharField(help_text="Mensaje de éxito")
+    data = serializers.DictField(required=False, help_text="Datos adicionales")
+
+class BulkOperationResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de operaciones masivas"""
+    message = serializers.CharField(help_text="Mensaje descriptivo de la operación")
+    updated_count = serializers.IntegerField(help_text="Cantidad de registros actualizados")
+    new_status = serializers.CharField(required=False, help_text="Nuevo estado aplicado")
+    updated_reservations = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        help_text="Lista de IDs actualizados"
+    )
+
+# ============================================================================
 # SERIALIZERS PARA UBICACIONES
 # ============================================================================
 
 class LocationSerializer(serializers.ModelSerializer):
     """Serializer para ubicaciones geográficas"""
-    coordinates = serializers.SerializerMethodField()
-    google_maps_url = serializers.SerializerMethodField()
-    formatted_address = serializers.SerializerMethodField()
+    coordinates = serializers.SerializerMethodField(help_text="Tupla de coordenadas (lat, lng)")
+    google_maps_url = serializers.SerializerMethodField(help_text="URL directa a Google Maps")
+    formatted_address = serializers.SerializerMethodField(help_text="Dirección completa formateada")
     
     class Meta:
         model = Location
@@ -24,15 +49,12 @@ class LocationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'coordinates', 'google_maps_url', 'formatted_address', 'created_at', 'updated_at']
     
     def get_coordinates(self, obj) -> Tuple[float, float]:
-        """Retorna las coordenadas como tupla"""
         return obj.get_coordinates()
     
     def get_google_maps_url(self, obj) -> str:
-        """Retorna URL de Google Maps"""
         return obj.get_google_maps_url()
     
     def get_formatted_address(self, obj) -> str:
-        """Retorna dirección formateada"""
         return obj.get_formatted_address()
 
 # ============================================================================
@@ -45,13 +67,18 @@ class HostelSerializer(serializers.ModelSerializer):
     total_capacity = serializers.SerializerMethodField(help_text="Capacidad total del albergue (hombres + mujeres)")
     current_capacity = serializers.SerializerMethodField(help_text="Capacidad actual utilizada (hombres + mujeres)")
     available_capacity = serializers.SerializerMethodField(help_text="Capacidad disponible por género y total")
-    coordinates = serializers.SerializerMethodField()
-    formatted_address = serializers.SerializerMethodField()
+    coordinates = serializers.SerializerMethodField(help_text="Coordenadas GPS del albergue")
+    formatted_address = serializers.SerializerMethodField(help_text="Dirección completa del albergue")
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     
-    # Campos de capacidad actual - explícitamente definidos para Swagger
-    current_men_capacity = serializers.IntegerField(read_only=True, help_text="Capacidad actual de hombres utilizada")
-    current_women_capacity = serializers.IntegerField(read_only=True, help_text="Capacidad actual de mujeres utilizada")
+    current_men_capacity = serializers.IntegerField(
+        read_only=True, 
+        help_text="Capacidad actual de hombres utilizada"
+    )
+    current_women_capacity = serializers.IntegerField(
+        read_only=True, 
+        help_text="Capacidad actual de mujeres utilizada"
+    )
     
     class Meta:
         model = Hostel
@@ -69,19 +96,16 @@ class HostelSerializer(serializers.ModelSerializer):
         ]
     
     def get_total_capacity(self, obj) -> int:
-        """Retorna la capacidad total del albergue"""
         men_cap = obj.men_capacity or 0
         women_cap = obj.women_capacity or 0
         return men_cap + women_cap
     
     def get_current_capacity(self, obj) -> int:
-        """Retorna la capacidad actual utilizada del albergue"""
         men_current = obj.current_men_capacity or 0
         women_current = obj.current_women_capacity or 0
         return men_current + women_current
     
     def get_available_capacity(self, obj) -> dict:
-        """Retorna la capacidad disponible del albergue"""
         men_total = obj.men_capacity or 0
         women_total = obj.women_capacity or 0
         men_current = obj.current_men_capacity or 0
@@ -94,15 +118,12 @@ class HostelSerializer(serializers.ModelSerializer):
         }
     
     def get_coordinates(self, obj) -> Tuple[float, float]:
-        """Retorna las coordenadas del albergue"""
         return obj.get_coordinates()
     
     def get_formatted_address(self, obj) -> str:
-        """Retorna dirección formateada del albergue"""
         return obj.get_formatted_address()
     
     def validate(self, attrs):
-        """Validar que al menos una capacidad sea especificada"""
         men_capacity = attrs.get('men_capacity')
         women_capacity = attrs.get('women_capacity')
         
@@ -131,7 +152,6 @@ class HostelCreateSerializer(serializers.ModelSerializer):
         return hostel
     
     def validate(self, attrs):
-        """Validar que al menos una capacidad sea especificada"""
         men_capacity = attrs.get('men_capacity')
         women_capacity = attrs.get('women_capacity')
         
@@ -141,6 +161,22 @@ class HostelCreateSerializer(serializers.ModelSerializer):
             )
         
         return attrs
+
+class HostelAvailabilityResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de disponibilidad de albergue"""
+    hostel = serializers.DictField(help_text="Información del albergue")
+    date = serializers.DateField(help_text="Fecha consultada")
+    capacity = serializers.DictField(help_text="Capacidad total del albergue")
+    current_occupancy = serializers.DictField(help_text="Ocupación actual")
+    reserved_for_date = serializers.DictField(help_text="Reservas para la fecha específica")
+    available = serializers.DictField(help_text="Disponibilidad por género")
+
+class NearbyHostelsResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de búsqueda de albergues cercanos"""
+    search_center = serializers.DictField(help_text="Centro de búsqueda (lat, lng)")
+    radius_km = serializers.FloatField(help_text="Radio de búsqueda en kilómetros")
+    count = serializers.IntegerField(help_text="Cantidad de albergues encontrados")
+    results = HostelSerializer(many=True, help_text="Lista de albergues cercanos")
 
 # ============================================================================
 # SERIALIZERS PARA RESERVAS DE ALBERGUES
@@ -152,7 +188,7 @@ class HostelReservationSerializer(serializers.ModelSerializer):
     user_phone = serializers.CharField(source='user.phone_number', read_only=True)
     hostel_name = serializers.CharField(source='hostel.name', read_only=True)
     hostel_location = serializers.CharField(source='hostel.get_formatted_address', read_only=True)
-    total_people = serializers.SerializerMethodField()
+    total_people = serializers.SerializerMethodField(help_text="Total de personas en la reserva")
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
@@ -172,13 +208,11 @@ class HostelReservationSerializer(serializers.ModelSerializer):
         ]
     
     def get_total_people(self, obj) -> int:
-        """Retorna el total de personas en la reserva"""
         men = obj.men_quantity or 0
         women = obj.women_quantity or 0
         return men + women
     
     def validate(self, attrs):
-        """Validar que al menos una cantidad sea especificada y que haya capacidad disponible"""
         men_quantity = attrs.get('men_quantity')
         women_quantity = attrs.get('women_quantity')
         
@@ -187,8 +221,7 @@ class HostelReservationSerializer(serializers.ModelSerializer):
                 "Debe especificar al menos una cantidad (hombres o mujeres)"
             )
         
-        # Validar capacidad disponible si se está creando una nueva reserva
-        if self.instance is None:  # Solo para creación, no para actualización
+        if self.instance is None:
             hostel = attrs.get('hostel')
             if hostel:
                 self._validate_capacity_availability(hostel, men_quantity or 0, women_quantity or 0)
@@ -196,7 +229,6 @@ class HostelReservationSerializer(serializers.ModelSerializer):
         return attrs
     
     def _validate_capacity_availability(self, hostel, men_quantity, women_quantity):
-        """Validar que hay capacidad disponible en el albergue"""
         if not hostel.has_capacity_for(men_quantity, women_quantity):
             available = hostel.get_available_capacity()
             raise serializers.ValidationError(
@@ -206,7 +238,6 @@ class HostelReservationSerializer(serializers.ModelSerializer):
             )
     
     def validate_arrival_date(self, value):
-        """Validar que la fecha de llegada no sea en el pasado"""
         from django.utils import timezone
         from datetime import date
         
@@ -225,11 +256,9 @@ class HostelReservationUpdateSerializer(serializers.ModelSerializer):
         fields = ['status']
     
     def update(self, instance, validated_data):
-        """Actualizar solo el status y registrar quién lo modificó"""
         old_status = instance.status
         new_status = validated_data.get('status', instance.status)
         
-        # Registrar quién modificó la reserva si hay usuario en contexto
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             instance.updated_by = request.user
@@ -237,31 +266,25 @@ class HostelReservationUpdateSerializer(serializers.ModelSerializer):
         instance.status = new_status
         instance.save()
         
-        # Actualizar capacidad del albergue según el cambio de estado
         self._update_hostel_capacity(instance, old_status, new_status)
         
         return instance
     
     def _update_hostel_capacity(self, reservation, old_status, new_status):
-        """Actualizar la capacidad actual del albergue según el cambio de estado"""
         hostel = reservation.hostel
         
-        # Si la reserva se confirma, agregar a la capacidad actual
         if old_status != 'confirmed' and new_status == 'confirmed':
             self._add_to_current_capacity(hostel, reservation)
         
-        # Si la reserva se cancela, rechaza o completa desde confirmada, quitar de la capacidad actual
         elif old_status == 'confirmed' and new_status in ['cancelled', 'rejected', 'completed']:
             self._remove_from_current_capacity(hostel, reservation)
     
     def _add_to_current_capacity(self, hostel, reservation):
-        """Agregar la cantidad de la reserva a la capacidad actual del albergue"""
         men_quantity = reservation.men_quantity or 0
         women_quantity = reservation.women_quantity or 0
         hostel.add_to_current_capacity(men_quantity, women_quantity)
     
     def _remove_from_current_capacity(self, hostel, reservation):
-        """Quitar la cantidad de la reserva de la capacidad actual del albergue"""
         men_quantity = reservation.men_quantity or 0
         women_quantity = reservation.women_quantity or 0
         hostel.remove_from_current_capacity(men_quantity, women_quantity)
@@ -278,7 +301,6 @@ class BulkStatusUpdateSerializer(serializers.Serializer):
     )
     
     def validate_reservation_ids(self, value):
-        """Validar que la lista no esté vacía"""
         if not value:
             raise serializers.ValidationError("La lista de IDs no puede estar vacía")
         return value

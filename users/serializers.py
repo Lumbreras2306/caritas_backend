@@ -8,6 +8,29 @@ from .models import (
 )
 
 # ============================================================================
+# SERIALIZERS DE RESPUESTAS ESTÁNDAR
+# ============================================================================
+
+class ErrorResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas de error estándar"""
+    error = serializers.CharField(help_text="Mensaje de error")
+    detail = serializers.CharField(required=False, help_text="Detalle adicional del error")
+    field_errors = serializers.DictField(required=False, help_text="Errores específicos por campo")
+
+class SuccessResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas exitosas estándar"""
+    message = serializers.CharField(help_text="Mensaje de éxito")
+    data = serializers.DictField(required=False, help_text="Datos adicionales")
+
+class TokenResponseSerializer(serializers.Serializer):
+    """Serializer para respuestas con token"""
+    token = serializers.CharField(help_text="Token de autenticación")
+    user_id = serializers.UUIDField(help_text="ID del usuario")
+    username = serializers.CharField(required=False, help_text="Nombre de usuario (solo admins)")
+    full_name = serializers.CharField(help_text="Nombre completo del usuario")
+    is_superuser = serializers.BooleanField(required=False, help_text="Es superusuario (solo admins)")
+
+# ============================================================================
 # SERIALIZERS PARA USUARIOS PRE-REGISTRO
 # ============================================================================
 
@@ -37,12 +60,10 @@ class PreRegisterUserSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        # Validar si el usuario ya existe
         user_exists = CustomUser.objects.filter(phone_number=validated_data['phone_number']).exists()
         if user_exists:
             raise serializers.ValidationError("El usuario ya existe, por favor contacte al administrador")
         
-        # Validar si el pre-registro ya existe
         pre_register = PreRegisterUser.objects.filter(phone_number=validated_data['phone_number']).first()
         if pre_register:
             if pre_register.status == STATUS_CHOICES.PENDING:
@@ -62,6 +83,12 @@ class PreRegisterVerificationSerializer(serializers.Serializer):
         if not validate_phone_number(value):
             raise serializers.ValidationError("El número de teléfono no es válido")
         return value
+
+class PreRegisterVerificationResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de verificación de pre-registro"""
+    exists = serializers.BooleanField(help_text="Indica si existe el pre-registro")
+    data = PreRegisterUserSerializer(required=False, allow_null=True, help_text="Datos del pre-registro si existe")
+    message = serializers.CharField(help_text="Mensaje descriptivo")
 
 # ============================================================================
 # SERIALIZERS PARA USUARIOS FINALES
@@ -97,12 +124,10 @@ class CustomUserSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        # Validar si el usuario ya existe
         user_exists = CustomUser.objects.filter(phone_number=validated_data['phone_number']).exists()
         if user_exists:
             raise serializers.ValidationError("El usuario ya existe")
         
-        # Modificar el campo de status del pre-registro a aprobado si existe
         pre_register = PreRegisterUser.objects.filter(phone_number=validated_data['phone_number']).first()
         if pre_register:
             pre_register.status = STATUS_CHOICES.APPROVED
@@ -131,7 +156,6 @@ class AdminUserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'last_login', 'created_at', 'full_name']
     
     def validate(self, attrs):
-        # Validar contraseñas solo si se están cambiando
         if 'password' in attrs:
             if 'password_confirm' not in attrs:
                 raise serializers.ValidationError("Debe confirmar la contraseña")
@@ -167,8 +191,8 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
 class AdminUserLoginSerializer(serializers.Serializer):
     """Serializer para login de administradores"""
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+    username = serializers.CharField(help_text="Nombre de usuario del administrador")
+    password = serializers.CharField(write_only=True, help_text="Contraseña del administrador")
     
     def validate(self, attrs):
         username = attrs.get('username')
@@ -194,9 +218,9 @@ class AdminUserLoginSerializer(serializers.Serializer):
 
 class AdminUserPasswordChangeSerializer(serializers.Serializer):
     """Serializer para cambio de contraseña de administradores"""
-    old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, min_length=8)
-    new_password_confirm = serializers.CharField(write_only=True)
+    old_password = serializers.CharField(write_only=True, help_text="Contraseña actual")
+    new_password = serializers.CharField(write_only=True, min_length=8, help_text="Nueva contraseña (mínimo 8 caracteres)")
+    new_password_confirm = serializers.CharField(write_only=True, help_text="Confirmación de nueva contraseña")
     
     def validate_old_password(self, value):
         user = self.context['request'].user
@@ -216,25 +240,34 @@ class AdminUserPasswordChangeSerializer(serializers.Serializer):
         return user
 
 # ============================================================================
-# SERIALIZERS PARA VERIFICACIÓN CON TWILIO VERIFY
+# SERIALIZERS PARA VERIFICACIÓN CON TWILIO
 # ============================================================================
 
 class PhoneVerificationSendSerializer(serializers.Serializer):
     """Serializer para enviar código de verificación SMS"""
-    phone_number = serializers.CharField(max_length=17, validators=[phone_regex])
+    phone_number = serializers.CharField(
+        max_length=17, 
+        validators=[phone_regex],
+        help_text="Número de teléfono en formato internacional (ej: +52811908593)"
+    )
     
     def validate_phone_number(self, value):
         if not validate_phone_number(value):
             raise serializers.ValidationError("El número de teléfono debe estar en formato internacional con código de país. Ejemplo: +52811908593")
         
-        # Verificar que existe un usuario con este número de teléfono
         if not CustomUser.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError("No existe un usuario con este número de teléfono")
         
         return value
 
+class PhoneVerificationSendResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de envío de código"""
+    message = serializers.CharField(help_text="Mensaje de confirmación")
+    phone_number = serializers.CharField(help_text="Número de teléfono al que se envió el código")
+    verification_sid = serializers.CharField(help_text="ID de verificación de Twilio")
+
 class PhoneVerificationCheckSerializer(serializers.Serializer):
-    """Serializer para verificar código SMS con Twilio Verify"""
+    """Serializer para verificar código SMS"""
     phone_number = serializers.CharField(
         max_length=17, 
         validators=[phone_regex],
@@ -256,6 +289,25 @@ class PhoneVerificationCheckSerializer(serializers.Serializer):
             raise serializers.ValidationError("El código debe contener solo números")
         return value
 
+class UserInfoResponseSerializer(serializers.Serializer):
+    """Serializer para información del usuario en respuestas"""
+    id = serializers.UUIDField(help_text="ID único del usuario")
+    first_name = serializers.CharField(help_text="Nombre del usuario")
+    last_name = serializers.CharField(help_text="Apellido del usuario")
+    phone_number = serializers.CharField(help_text="Número de teléfono")
+    is_active = serializers.BooleanField(help_text="Usuario activo")
+    approved_at = serializers.DateTimeField(allow_null=True, help_text="Fecha de aprobación")
+
+class PhoneVerificationCheckResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de verificación exitosa"""
+    message = serializers.CharField(help_text="Mensaje de confirmación")
+    token = serializers.CharField(help_text="Token de autenticación del usuario")
+    user = UserInfoResponseSerializer(help_text="Información del usuario autenticado")
+
+# ============================================================================
+# SERIALIZERS PARA OPERACIONES MASIVAS
+# ============================================================================
+
 class BulkPreRegisterApprovalSerializer(serializers.Serializer):
     """Serializer para aprobación masiva de pre-registros"""
     pre_register_ids = serializers.ListField(
@@ -264,10 +316,14 @@ class BulkPreRegisterApprovalSerializer(serializers.Serializer):
     )
     
     def validate_pre_register_ids(self, value):
-        """Validar que la lista no esté vacía"""
         if not value:
             raise serializers.ValidationError("La lista de IDs no puede estar vacía")
         return value
+
+class BulkOperationResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de operaciones masivas"""
+    message = serializers.CharField(help_text="Mensaje descriptivo de la operación")
+    updated_count = serializers.IntegerField(help_text="Cantidad de registros actualizados")
 
 class BulkUserDeactivationSerializer(serializers.Serializer):
     """Serializer para desactivación masiva de usuarios"""
@@ -277,72 +333,6 @@ class BulkUserDeactivationSerializer(serializers.Serializer):
     )
     
     def validate_user_ids(self, value):
-        """Validar que la lista no esté vacía"""
         if not value:
             raise serializers.ValidationError("La lista de IDs no puede estar vacía")
         return value
-
-# ============================================================================
-# SERIALIZERS PARA RESPUESTAS DE VERIFICACIÓN
-# ============================================================================
-
-class UserInfoSerializer(serializers.Serializer):
-    """Serializer para información del usuario en respuestas de verificación"""
-    id = serializers.UUIDField(read_only=True)
-    first_name = serializers.CharField(read_only=True)
-    last_name = serializers.CharField(read_only=True)
-    phone_number = serializers.CharField(read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
-    approved_at = serializers.DateTimeField(read_only=True, allow_null=True)
-
-class VerificationSuccessResponseSerializer(serializers.Serializer):
-    """Serializer para respuesta exitosa de verificación"""
-    message = serializers.CharField(read_only=True)
-    token = serializers.CharField(read_only=True)
-    user = UserInfoSerializer(read_only=True)
-
-class VerificationErrorResponseSerializer(serializers.Serializer):
-    """Serializer para respuesta de error de verificación"""
-    message = serializers.CharField(read_only=True)
-    error = serializers.CharField(read_only=True, allow_null=True)
-
-# ============================================================================
-# SERIALIZERS ESPECÍFICOS PARA DOCUMENTACIÓN DE SWAGGER
-# ============================================================================
-
-class VerificationSuccessResponseDocSerializer(serializers.Serializer):
-    """Serializer específico para documentación de respuesta exitosa"""
-    message = serializers.CharField(read_only=True, help_text="Mensaje de confirmación")
-    token = serializers.CharField(read_only=True, help_text="Token de autenticación generado")
-    user = UserInfoSerializer(read_only=True, help_text="Información del usuario autenticado")
-    
-    class Meta:
-        example = {
-            "message": "Código verificado exitosamente",
-            "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
-            "user": {
-                "id": "123e4567-e89b-12d3-a456-426614174000",
-                "first_name": "Juan",
-                "last_name": "Pérez",
-                "phone_number": "+52811908593",
-                "is_active": True,
-                "approved_at": "2024-01-15T10:30:00Z"
-            }
-        }
-
-class VerificationErrorResponseDocSerializer(serializers.Serializer):
-    """Serializer específico para documentación de respuesta de error"""
-    message = serializers.CharField(read_only=True, help_text="Mensaje de error")
-    error = serializers.CharField(read_only=True, allow_null=True, help_text="Código de error específico")
-    
-    class Meta:
-        examples = [
-            {
-                "message": "Código de verificación inválido",
-                "error": "INVALID_CODE"
-            },
-            {
-                "message": "No existe un usuario con este número de teléfono",
-                "error": "USER_NOT_FOUND"
-            }
-        ]

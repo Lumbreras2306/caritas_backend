@@ -14,7 +14,8 @@ from drf_spectacular.types import OpenApiTypes
 from .models import Item, Inventory, InventoryItem
 from .serializers import (
     ItemSerializer, InventorySerializer, InventoryItemSerializer,
-    InventoryItemQuantityUpdateSerializer, InventoryItemDetailSerializer
+    InventoryItemQuantityUpdateSerializer, InventoryItemDetailSerializer,
+    ErrorResponseSerializer, SuccessResponseSerializer, BulkOperationResponseSerializer
 )
 
 # ============================================================================
@@ -25,18 +26,44 @@ from .serializers import (
     list=extend_schema(
         tags=['Inventario'],
         summary="Lista artículos",
-        description="Obtiene lista paginada de artículos del sistema de inventario",
+        description="Obtiene lista paginada de artículos del sistema de inventario con filtros y búsqueda",
         parameters=[
-            OpenApiParameter(name='category', type=OpenApiTypes.STR, description='Filtrar por categoría'),
-            OpenApiParameter(name='unit', type=OpenApiTypes.STR, description='Filtrar por unidad de medida'),
-            OpenApiParameter(name='is_active', type=OpenApiTypes.BOOL, description='Filtrar por estado activo'),
-            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre, descripción, categoría'),
-        ]
+            OpenApiParameter(
+                name='category',
+                type=OpenApiTypes.STR,
+                description="Filtrar por categoría del artículo"
+            ),
+            OpenApiParameter(
+                name='unit',
+                type=OpenApiTypes.STR,
+                description="Filtrar por unidad de medida"
+            ),
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                description="Filtrar por estado activo"
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                description='Busca en nombre, descripción, categoría'
+            ),
+        ],
+        responses={
+            200: ItemSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Inventario'],
         summary="Crear artículo",
         description="Crea un nuevo artículo para usar en inventarios",
+        request=ItemSerializer,
+        responses={
+            201: ItemSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Artículo de higiene',
@@ -45,7 +72,8 @@ from .serializers import (
                     "description": "Jabón líquido antibacterial 500ml",
                     "category": "Higiene",
                     "unit": "botellas"
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Artículo de alimentos',
@@ -54,7 +82,8 @@ from .serializers import (
                     "description": "Arroz blanco de grano largo",
                     "category": "Alimentos",
                     "unit": "kilogramos"
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Artículo de limpieza',
@@ -63,14 +92,31 @@ from .serializers import (
                     "description": "Detergente para lavado de ropa",
                     "category": "Limpieza",
                     "unit": "cajas"
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Inventario'], summary="Detalle de artículo"),
-    update=extend_schema(tags=['Inventario'], summary="Actualizar artículo"),
-    partial_update=extend_schema(tags=['Inventario'], summary="Actualizar artículo parcial"),
-    destroy=extend_schema(tags=['Inventario'], summary="Eliminar artículo"),
+    retrieve=extend_schema(
+        tags=['Inventario'],
+        summary="Detalle de artículo",
+        responses={200: ItemSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Inventario'],
+        summary="Actualizar artículo",
+        responses={200: ItemSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Inventario'],
+        summary="Actualizar artículo parcial",
+        responses={200: ItemSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Inventario'],
+        summary="Eliminar artículo",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class ItemViewSet(viewsets.ModelViewSet):
     """
@@ -103,7 +149,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         summary="Lista categorías únicas",
         description="Obtiene una lista de todas las categorías únicas de artículos",
         responses={
-            200: OpenApiResponse(description="Categorías obtenidas exitosamente"),
+            200: SuccessResponseSerializer,
         }
     )
     @action(detail=False, methods=['get'])
@@ -120,7 +166,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         summary="Lista unidades únicas",
         description="Obtiene una lista de todas las unidades de medida únicas",
         responses={
-            200: OpenApiResponse(description="Unidades obtenidas exitosamente"),
+            200: SuccessResponseSerializer,
         }
     )
     @action(detail=False, methods=['get'])
@@ -140,17 +186,39 @@ class ItemViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=['Inventario'],
         summary="Lista inventarios",
-        description="Obtiene lista paginada de inventarios por albergue",
+        description="Obtiene lista paginada de inventarios por albergue con filtros y búsqueda",
         parameters=[
-            OpenApiParameter(name='hostel', type=OpenApiTypes.UUID, description='Filtrar por albergue'),
-            OpenApiParameter(name='is_active', type=OpenApiTypes.BOOL, description='Filtrar por estado activo'),
-            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre, descripción, nombre del albergue'),
-        ]
+            OpenApiParameter(
+                name='hostel',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por albergue específico'
+            ),
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                description='Filtrar por estado activo'
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                description='Busca en nombre, descripción, nombre del albergue'
+            ),
+        ],
+        responses={
+            200: InventorySerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Inventario'],
         summary="Crear inventario",
         description="Crea un nuevo inventario para un albergue",
+        request=InventorySerializer,
+        responses={
+            201: InventorySerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Inventario principal',
@@ -158,7 +226,8 @@ class ItemViewSet(viewsets.ModelViewSet):
                     "hostel": "123e4567-e89b-12d3-a456-426614174000",
                     "name": "Inventario Principal",
                     "description": "Inventario principal del albergue Casa San José"
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Inventario de emergencia',
@@ -166,14 +235,31 @@ class ItemViewSet(viewsets.ModelViewSet):
                     "hostel": "123e4567-e89b-12d3-a456-426614174001",
                     "name": "Inventario de Emergencia",
                     "description": "Inventario para situaciones de emergencia"
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Inventario'], summary="Detalle de inventario"),
-    update=extend_schema(tags=['Inventario'], summary="Actualizar inventario"),
-    partial_update=extend_schema(tags=['Inventario'], summary="Actualizar inventario parcial"),
-    destroy=extend_schema(tags=['Inventario'], summary="Eliminar inventario"),
+    retrieve=extend_schema(
+        tags=['Inventario'],
+        summary="Detalle de inventario",
+        responses={200: InventorySerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Inventario'],
+        summary="Actualizar inventario",
+        responses={200: InventorySerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Inventario'],
+        summary="Actualizar inventario parcial",
+        responses={200: InventorySerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Inventario'],
+        summary="Eliminar inventario",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class InventoryViewSet(viewsets.ModelViewSet):
     """
@@ -206,8 +292,8 @@ class InventoryViewSet(viewsets.ModelViewSet):
         summary="Resumen del inventario",
         description="Obtiene resumen completo del inventario con estadísticas y análisis por categoría",
         responses={
-            200: OpenApiResponse(description="Resumen obtenido exitosamente"),
-            404: OpenApiResponse(description="Inventario no encontrado"),
+            200: SuccessResponseSerializer,
+            404: ErrorResponseSerializer,
         }
     )
     @action(detail=True, methods=['get'])
@@ -284,19 +370,49 @@ class InventoryViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=['Inventario'],
         summary="Lista artículos en inventarios",
-        description="Obtiene lista de artículos con su stock en inventarios específicos",
+        description="Obtiene lista de artículos con su stock en inventarios específicos con filtros y búsqueda",
         parameters=[
-            OpenApiParameter(name='inventory', type=OpenApiTypes.UUID, description='Filtrar por inventario'),
-            OpenApiParameter(name='item', type=OpenApiTypes.UUID, description='Filtrar por artículo'),
-            OpenApiParameter(name='is_active', type=OpenApiTypes.BOOL, description='Filtrar por estado activo'),
-            OpenApiParameter(name='item__category', type=OpenApiTypes.STR, description='Filtrar por categoría de artículo'),
-            OpenApiParameter(name='search', type=OpenApiTypes.STR, description='Busca en nombre del artículo, descripción, inventario'),
-        ]
+            OpenApiParameter(
+                name='inventory',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por inventario específico'
+            ),
+            OpenApiParameter(
+                name='item',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por artículo específico'
+            ),
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                description='Filtrar por estado activo'
+            ),
+            OpenApiParameter(
+                name='item__category',
+                type=OpenApiTypes.STR,
+                description='Filtrar por categoría de artículo'
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                description='Busca en nombre del artículo, descripción, inventario'
+            ),
+        ],
+        responses={
+            200: InventoryItemSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
     ),
     create=extend_schema(
         tags=['Inventario'],
         summary="Agregar artículo a inventario",
         description="Agrega un artículo específico a un inventario con cantidad inicial",
+        request=InventoryItemSerializer,
+        responses={
+            201: InventoryItemSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
         examples=[
             OpenApiExample(
                 'Agregar jabón al inventario',
@@ -305,7 +421,8 @@ class InventoryViewSet(viewsets.ModelViewSet):
                     "item": "123e4567-e89b-12d3-a456-426614174001",
                     "quantity": 50,
                     "minimum_stock": 10
-                }
+                },
+                request_only=True,
             ),
             OpenApiExample(
                 'Agregar arroz al inventario',
@@ -314,14 +431,31 @@ class InventoryViewSet(viewsets.ModelViewSet):
                     "item": "123e4567-e89b-12d3-a456-426614174002",
                     "quantity": 100,
                     "minimum_stock": 20
-                }
+                },
+                request_only=True,
             )
         ]
     ),
-    retrieve=extend_schema(tags=['Inventario'], summary="Detalle de artículo en inventario"),
-    update=extend_schema(tags=['Inventario'], summary="Actualizar artículo en inventario"),
-    partial_update=extend_schema(tags=['Inventario'], summary="Actualizar artículo parcial"),
-    destroy=extend_schema(tags=['Inventario'], summary="Eliminar artículo de inventario"),
+    retrieve=extend_schema(
+        tags=['Inventario'],
+        summary="Detalle de artículo en inventario",
+        responses={200: InventoryItemSerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Inventario'],
+        summary="Actualizar artículo en inventario",
+        responses={200: InventoryItemSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Inventario'],
+        summary="Actualizar artículo parcial",
+        responses={200: InventoryItemSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Inventario'],
+        summary="Eliminar artículo de inventario",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
 )
 class InventoryItemViewSet(viewsets.ModelViewSet):
     """
@@ -363,9 +497,9 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         description="Actualiza la cantidad de un artículo específico en inventario usando operaciones (set, add, remove)",
         request=InventoryItemQuantityUpdateSerializer,
         responses={
-            200: OpenApiResponse(description="Cantidad actualizada exitosamente"),
-            400: OpenApiResponse(description="Datos inválidos o operación no válida"),
-            404: OpenApiResponse(description="Artículo de inventario no encontrado"),
+            200: SuccessResponseSerializer,
+            400: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
         },
         examples=[
             OpenApiExample(
@@ -374,7 +508,8 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
                     "action": "set",
                     "amount": 100
                 },
-                description='Establece la cantidad exacta en 100 unidades'
+                description='Establece la cantidad exacta en 100 unidades',
+                request_only=True,
             ),
             OpenApiExample(
                 'Agregar stock',
@@ -382,7 +517,8 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
                     "action": "add",
                     "amount": 25
                 },
-                description='Agrega 25 unidades al stock actual'
+                description='Agrega 25 unidades al stock actual',
+                request_only=True,
             ),
             OpenApiExample(
                 'Quitar stock',
@@ -390,7 +526,8 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
                     "action": "remove",
                     "amount": 10
                 },
-                description='Quita 10 unidades del stock actual'
+                description='Quita 10 unidades del stock actual',
+                request_only=True,
             )
         ]
     )
@@ -424,11 +561,19 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         summary="Artículos con stock bajo",
         description="Lista todos los artículos con stock por debajo del umbral especificado",
         parameters=[
-            OpenApiParameter(name='threshold', type=OpenApiTypes.INT, description='Umbral de stock bajo (default: 5)'),
-            OpenApiParameter(name='inventory', type=OpenApiTypes.UUID, description='Filtrar por inventario específico'),
+            OpenApiParameter(
+                name='threshold',
+                type=OpenApiTypes.INT,
+                description='Umbral de stock bajo (default: 5)'
+            ),
+            OpenApiParameter(
+                name='inventory',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por inventario específico'
+            ),
         ],
         responses={
-            200: OpenApiResponse(description="Artículos con stock bajo obtenidos exitosamente"),
+            200: SuccessResponseSerializer,
         }
     )
     @action(detail=False, methods=['get'])
@@ -466,10 +611,14 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         summary="Artículos sin stock",
         description="Lista todos los artículos que están sin stock (cantidad = 0)",
         parameters=[
-            OpenApiParameter(name='inventory', type=OpenApiTypes.UUID, description='Filtrar por inventario específico'),
+            OpenApiParameter(
+                name='inventory',
+                type=OpenApiTypes.UUID,
+                description='Filtrar por inventario específico'
+            ),
         ],
         responses={
-            200: OpenApiResponse(description="Artículos sin stock obtenidos exitosamente"),
+            200: SuccessResponseSerializer,
         }
     )
     @action(detail=False, methods=['get'])
