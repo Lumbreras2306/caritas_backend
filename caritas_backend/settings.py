@@ -200,15 +200,11 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'users.authentication.CustomTokenAuthentication',
     ],
-
-    # Configuración específica para evitar conflictos con documentación
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
 
-    # Configuración específica para documentación
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     
     'DEFAULT_FILTER_BACKENDS': [
@@ -232,7 +228,6 @@ REST_FRAMEWORK = {
     ],
     
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # ============================================================================
@@ -259,8 +254,10 @@ Esta API utiliza autenticación por **Token**. Para usar los endpoints protegido
    - Respuesta: `{"token": "abc123...", "user": {...}}`
 
 3. **Usar Token**: 
-   - Header: `Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`
-   - Click en el botón **"Authorize"** arriba y pega tu token
+   - Click en el botón **"Authorize"** arriba
+   - En el campo "Value", ingresa: `Token tu_token_aqui`
+   - IMPORTANTE: Debes incluir la palabra "Token" seguida de un espacio y luego tu token
+   - Ejemplo: `Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`
 
 ## 📋 Endpoints Públicos (No requieren autenticación)
 
@@ -311,11 +308,6 @@ Todos los demás endpoints requieren autenticación con token.
         {'name': 'Inventario', 'description': '📦 Gestión de inventario y artículos'},
     ],
     
-    # Configuración de seguridad - Solo mostrar TokenAuth
-    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
-    'SERVE_AUTHENTICATION': ['users.authentication.CustomTokenAuthentication'],
-    'SERVE_AUTHENTICATION_CLASSES': ['users.authentication.CustomTokenAuthentication'],
-    
     # Configuración de Swagger UI
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
@@ -332,7 +324,6 @@ Todos los demás endpoints requieren autenticación con token.
         'docExpansion': 'list',
         'operationsSorter': 'alpha',
         'tagsSorter': 'alpha',
-        # Configuración específica para mostrar solo TokenAuth
         'supportedSubmitMethods': ['get', 'post', 'put', 'delete', 'patch'],
         'showRequestHeaders': True,
     },
@@ -356,41 +347,36 @@ Todos los demás endpoints requieren autenticación con token.
         }
     },
     
-    # Esquemas de autenticación - Solo mostrar TokenAuth
+    # Esquema de autenticación TokenAuth - IMPORTANTE: usar bearerFormat
     'APPEND_COMPONENTS': {
         'securitySchemes': {
             'TokenAuth': {
                 'type': 'apiKey',
                 'in': 'header',
                 'name': 'Authorization',
-                'description': 'Token de autenticación. Formato: `Token <tu_token>` (válido para usuarios finales y administradores)'
+                'description': 'Token de autenticación. **IMPORTANTE**: Debes ingresar el token en el formato `Token <tu_token>`\n\nEjemplo: `Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`'
             }
         }
     },
 
-    'SECURITY': [{'TokenAuth': []}],  # Aplicar TokenAuth globalmente
-
-    # Deshabilitar generación automática de esquemas de seguridad
-    'COMPONENT_SPLIT_REQUEST': True,
-    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
-    'DISABLE_ERRORS_AND_WARNINGS': False,
-    
-    # Preprocessing - Personalizar esquemas de seguridad
-    'PREPROCESSING_HOOKS': [
-        'drf_spectacular.hooks.preprocess_exclude_path_format',
-        'caritas_backend.hooks.custom_preprocessing_hook',
-    ],
-    'POSTPROCESSING_HOOKS': [
-        'drf_spectacular.hooks.postprocess_schema_enums',
-        'caritas_backend.hooks.custom_postprocessing_hook',
-    ],
-    
-    # Enum name overrides
-    'ENUM_NAME_OVERRIDES': {},
+    # Aplicar TokenAuth a todos los endpoints por defecto
+    'SECURITY': [{'TokenAuth': []}],
     
     # Configuración adicional
     'CAMELIZE_NAMES': False,
     'DISABLE_ERRORS_AND_WARNINGS': False,
+    
+    # Enum name overrides
+    'ENUM_NAME_OVERRIDES': {},
+    
+    # Hook para limpiar esquemas duplicados
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'caritas_backend.hooks.postprocess_schema_cleanup',
+    ],
+    
+    # No auto-generar esquemas de seguridad desde las clases de autenticación
+    'AUTHENTICATION_WHITELIST': [],
 }
 
 # ============================================================================
