@@ -209,7 +209,8 @@ class HostelReservation(AuditModel):
         CONFIRMED = "confirmed", "Confirmada"
         CANCELLED = "cancelled", "Cancelada"
         REJECTED = "rejected", "Rechazada"
-        COMPLETED = "completed", "Completada"
+        CHECKED_IN = "checked_in", "Check-in"
+        CHECKED_OUT = "checked_out", "Check-out"
 
     class ReservationType(models.TextChoices):
         INDIVIDUAL = "individual", "Individual"
