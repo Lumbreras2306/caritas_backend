@@ -23,6 +23,13 @@ class CustomTokenAuthentication(TokenAuthentication):
             # Verificar que el usuario esté activo
             if not user.is_active:
                 return None
+            
+            # Asegurar que el usuario tenga los atributos de autenticación
+            if not hasattr(user, 'is_authenticated'):
+                # Si no tiene el atributo, agregarlo dinámicamente
+                user.is_authenticated = user.is_active
+            if not hasattr(user, 'is_anonymous'):
+                user.is_anonymous = False
                 
             return (user, custom_token)
             

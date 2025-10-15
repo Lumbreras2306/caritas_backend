@@ -16,11 +16,11 @@ from .views import (
 # Router principal para ViewSets de servicios
 router = DefaultRouter()
 
-# Registrar ViewSets en el router
-router.register(r'services', ServiceViewSet, basename='service')
-router.register(r'schedules', ServiceScheduleViewSet, basename='schedule')
+# Registrar ViewSets en el router (orden específico primero)
 router.register(r'hostel-services', HostelServiceViewSet, basename='hostelservice')
 router.register(r'reservations', ReservationServiceViewSet, basename='reservation')
+router.register(r'schedules', ServiceScheduleViewSet, basename='schedule')
+router.register(r'services', ServiceViewSet, basename='service')
 
 # ============================================================================
 # PATRONES DE URL

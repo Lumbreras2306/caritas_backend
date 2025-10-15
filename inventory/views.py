@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Sum, Count, Avg
+from users.permissions import IsAdminUser
 
 # DRF Spectacular imports para documentación automática
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, OpenApiExample
@@ -127,7 +128,7 @@ class ItemViewSet(viewsets.ModelViewSet):
     """
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'unit', 'is_active']
     search_fields = ['name', 'description', 'category']
@@ -270,7 +271,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
     """
     queryset = Inventory.objects.select_related('hostel').all()
     serializer_class = InventorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['hostel', 'is_active']
     search_fields = ['name', 'description', 'hostel__name']
@@ -466,7 +467,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
     """
     queryset = InventoryItem.objects.select_related('item', 'inventory', 'inventory__hostel').all()
     serializer_class = InventoryItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['inventory', 'item', 'is_active', 'item__category']
     search_fields = ['item__name', 'item__description', 'inventory__name', 'inventory__hostel__name']

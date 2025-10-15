@@ -137,7 +137,7 @@ class PreRegisterUserViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.save()
-        if hasattr(self.request, 'user') and self.request.user.is_authenticated:
+        if hasattr(self.request, 'user') and self.request.user and hasattr(self.request.user, 'is_authenticated') and self.request.user.is_authenticated:
             instance.updated_by = self.request.user
             instance.save()
         return instance
@@ -688,3 +688,60 @@ class AdminUserLogoutView(APIView):
 class CustomObtainAuthToken(ObtainAuthToken):
     """Vista personalizada para obtener token de autenticación con documentación."""
     permission_classes = [permissions.AllowAny]
+
+@extend_schema(
+    tags=['Authentication'],
+    summary="Información del usuario autenticado",
+    description="Obtiene información del usuario actualmente autenticado (AdminUser o CustomUser)",
+    responses={
+        200: OpenApiResponse(description="Información del usuario autenticado"),
+        401: ErrorResponseSerializer,
+    }
+)
+class UserInfoView(APIView):
+    """Vista para obtener información del usuario autenticado."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Obtener información del usuario autenticado."""
+        user = request.user
+        
+        # Información común
+        user_info = {
+            'id': str(user.id),
+            'is_authenticated': user.is_authenticated,
+            'is_anonymous': getattr(user, 'is_anonymous', False),
+            'is_active': user.is_active,
+        }
+        
+        # Información específica según el tipo de usuario
+        if isinstance(user, AdminUser):
+            user_info.update({
+                'user_type': 'admin',
+                'username': user.username,
+                'full_name': user.get_full_name(),
+                'is_superuser': user.is_superuser,
+                'is_staff': user.is_staff,
+                'main_hostel': user.main_hostel.name if user.main_hostel else None,
+                'last_login': user.last_login.isoformat() if user.last_login else None,
+            })
+        elif isinstance(user, CustomUser):
+            user_info.update({
+                'user_type': 'custom',
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'full_name': user.get_full_name(),
+                'phone_number': user.phone_number,
+                'age': user.age,
+                'gender': user.get_gender_display(),
+                'poverty_level': user.get_poverty_level_display(),
+                'approved_at': user.approved_at.isoformat() if user.approved_at else None,
+                'approved_by': user.approved_by.get_full_name() if user.approved_by else None,
+            })
+        else:
+            user_info.update({
+                'user_type': 'unknown',
+                'error': 'Tipo de usuario no reconocido'
+            })
+        
+        return Response(user_info, status=status.HTTP_200_OK)

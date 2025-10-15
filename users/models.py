@@ -322,6 +322,22 @@ class CustomUser(AuditModel):
         self.approved_by = admin_user
         self.approved_at = timezone.now()
         self.save()
+    
+    @property
+    def is_authenticated(self):
+        """
+        Propiedad para compatibilidad con Django's authentication system.
+        Siempre retorna True para usuarios CustomUser activos.
+        """
+        return self.is_active
+    
+    @property
+    def is_anonymous(self):
+        """
+        Propiedad para compatibilidad con Django's authentication system.
+        Siempre retorna False para usuarios CustomUser.
+        """
+        return False
 
 # ============================================================================
 # MODELO DE TOKEN PARA CUSTOMUSER (COMPATIBLE CON DRF)

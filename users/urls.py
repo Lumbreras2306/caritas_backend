@@ -10,6 +10,7 @@ from .views import (
     AdminUserLoginView,
     AdminUserLogoutView,
     CustomObtainAuthToken,
+    UserInfoView,
 )
 
 # ============================================================================
@@ -45,6 +46,9 @@ urlpatterns = [
     
     # Token de autenticación estándar de DRF (opcional)
     path('auth/token/', CustomObtainAuthToken.as_view(), name='api_token_auth'),
+    
+    # Información del usuario autenticado
+    path('auth/user-info/', UserInfoView.as_view(), name='user-info'),
 ]
 
 # ============================================================================

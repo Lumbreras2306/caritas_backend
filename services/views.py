@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Count, Sum, Avg
 from datetime import datetime, timedelta
+from users.permissions import IsAdminUser, CustomUserServiceAccess, CustomUserReservationAccess
 
 # DRF Spectacular imports para documentación automática
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, OpenApiExample
@@ -124,7 +125,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     """
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'reservation_type', 'needs_approval']
     search_fields = ['name', 'description']
@@ -304,7 +305,7 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
     """
     queryset = ServiceSchedule.objects.all()
     serializer_class = ServiceScheduleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['day_of_week', 'is_available']
     search_fields = []
@@ -410,7 +411,7 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
     """
     queryset = HostelService.objects.select_related('hostel', 'service', 'schedule').all()
     serializer_class = HostelServiceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomUserServiceAccess]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['hostel', 'service', 'is_active']
     search_fields = ['hostel__name', 'service__name', 'service__description']
@@ -478,6 +479,26 @@ class HostelServiceViewSet(viewsets.ModelViewSet):
                 'total_hostels': len(services_by_hostel),
                 'total_services': hostel_services.count()
             })
+
+    @extend_schema(
+        tags=['Servicios'],
+        summary="Servicios de albergues disponibles",
+        description="Endpoint específico para CustomUser: obtiene todos los servicios de albergues disponibles",
+        responses={
+            200: HostelServiceSerializer(many=True),
+            401: ErrorResponseSerializer,
+        }
+    )
+    @action(detail=False, methods=['get'], permission_classes=[CustomUserServiceAccess])
+    def hostel_services(self, request):
+        """Servicios de albergues disponibles para CustomUser."""
+        hostel_services = self.get_queryset().filter(is_active=True)
+        serializer = self.get_serializer(hostel_services, many=True)
+        
+        return Response({
+            'count': hostel_services.count(),
+            'services': serializer.data
+        })
 
 # ============================================================================
 # VIEWSETS PARA RESERVAS DE SERVICIOS
@@ -591,7 +612,7 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
         'user', 'service__hostel', 'service__service'
     ).all()
     serializer_class = ReservationServiceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomUserReservationAccess]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'type', 'service__hostel', 'service__service']
     search_fields = ['user__first_name', 'user__last_name', 'service__service__name', 'service__hostel__name']

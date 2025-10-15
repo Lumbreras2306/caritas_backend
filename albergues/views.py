@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Sum, Count, F
+from users.permissions import IsAdminUser, CustomUserHostelAccess, CustomUserReservationAccess
 
 from drf_spectacular.utils import (
     extend_schema, extend_schema_view, OpenApiParameter, 
@@ -97,7 +98,7 @@ class LocationViewSet(viewsets.ModelViewSet):
     """
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['city', 'state', 'country']
     search_fields = ['address', 'city', 'state', 'landmarks']
@@ -193,7 +194,7 @@ class HostelViewSet(viewsets.ModelViewSet):
     """
     queryset = Hostel.objects.select_related('location').all()
     serializer_class = HostelSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomUserHostelAccess]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'location__city', 'location__state']
     search_fields = ['name', 'phone', 'location__address', 'location__city']
@@ -469,7 +470,7 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
     """
     queryset = HostelReservation.objects.select_related('user', 'hostel', 'hostel__location').all()
     serializer_class = HostelReservationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomUserReservationAccess]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'type', 'hostel', 'arrival_date']
     search_fields = ['user__first_name', 'user__last_name', 'hostel__name']

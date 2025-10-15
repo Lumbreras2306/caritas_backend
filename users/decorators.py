@@ -11,7 +11,14 @@ def require_admin_user(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        if not hasattr(request, 'user') or not request.user:
+            return Response(
+                {'error': 'Authentication required'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Verificar autenticación de manera segura
+        if not hasattr(request.user, 'is_authenticated') or not request.user.is_authenticated:
             return Response(
                 {'error': 'Authentication required'}, 
                 status=status.HTTP_401_UNAUTHORIZED
@@ -33,7 +40,14 @@ def require_custom_user(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        if not hasattr(request, 'user') or not request.user:
+            return Response(
+                {'error': 'Authentication required'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Verificar autenticación de manera segura
+        if not hasattr(request.user, 'is_authenticated') or not request.user.is_authenticated:
             return Response(
                 {'error': 'Authentication required'}, 
                 status=status.HTTP_401_UNAUTHORIZED
@@ -55,7 +69,14 @@ def require_any_authenticated_user(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        if not hasattr(request, 'user') or not request.user:
+            return Response(
+                {'error': 'Authentication required'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Verificar autenticación de manera segura
+        if not hasattr(request.user, 'is_authenticated') or not request.user.is_authenticated:
             return Response(
                 {'error': 'Authentication required'}, 
                 status=status.HTTP_401_UNAUTHORIZED

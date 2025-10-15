@@ -15,7 +15,7 @@ class UserTypeMiddleware(MiddlewareMixin):
         """
         Agrega información del tipo de usuario al request para debugging.
         """
-        if hasattr(request, 'user') and request.user.is_authenticated:
+        if hasattr(request, 'user') and request.user and hasattr(request.user, 'is_authenticated') and request.user.is_authenticated:
             from .models import AdminUser, CustomUser
             
             if isinstance(request.user, AdminUser):
