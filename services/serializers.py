@@ -78,6 +78,10 @@ class ServiceSerializer(serializers.ModelSerializer):
         if value > 1440:  # 24 horas
             raise serializers.ValidationError("El tiempo máximo no puede ser mayor a 24 horas (1440 minutos)")
         return value
+    
+    def get_created_by_name(self, obj) -> str:
+        """Obtener el nombre de quien creó el servicio"""
+        return obj.created_by.get_full_name() if obj.created_by else "Sistema"
 
 # ============================================================================
 # SERIALIZERS PARA HORARIOS DE SERVICIOS
@@ -141,6 +145,10 @@ class ServiceScheduleSerializer(serializers.ModelSerializer):
             )
         
         return attrs
+    
+    def get_created_by_name(self, obj) -> str:
+        """Obtener el nombre de quien creó el horario"""
+        return obj.created_by.get_full_name() if obj.created_by else "Sistema"
 
 # ============================================================================
 # SERIALIZERS PARA SERVICIOS DE ALBERGUES
@@ -177,6 +185,10 @@ class HostelServiceSerializer(serializers.ModelSerializer):
     def get_total_reservations(self, obj) -> int:
         """Número total de reservas para este servicio de albergue"""
         return obj.reservationservice_set.count()
+    
+    def get_created_by_name(self, obj) -> str:
+        """Obtener el nombre de quien creó el servicio de albergue"""
+        return obj.created_by.get_full_name() if obj.created_by else "Sistema"
 
 # ============================================================================
 # SERIALIZERS PARA RESERVAS DE SERVICIOS
