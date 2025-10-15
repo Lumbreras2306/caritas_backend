@@ -195,7 +195,7 @@ class ReservationServiceSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     is_expired = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = ReservationService
@@ -232,6 +232,10 @@ class ReservationServiceSerializer(serializers.ModelSerializer):
         if obj.end_datetime_reserved:
             return timezone.now() > obj.end_datetime_reserved
         return False
+    
+    def get_created_by_name(self, obj) -> str:
+        """Obtener el nombre de quien creó la reserva"""
+        return obj.get_created_by_name()
 
 class BulkServiceReservationStatusUpdateSerializer(serializers.Serializer):
     """Serializer para actualización masiva de estados de reservas de servicios"""

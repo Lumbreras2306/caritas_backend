@@ -68,7 +68,7 @@ class POVERTY_LEVEL_CHOICES(models.TextChoices):
 # ============================================================================
 
 class AuditModel(models.Model):
-    """Modelo base para auditoría"""
+    """Modelo base para auditoría - Solo para AdminUser"""
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
     created_by = models.ForeignKey(
@@ -90,6 +90,64 @@ class AuditModel(models.Model):
 
     class Meta:
         abstract = True
+
+class FlexibleAuditModel(models.Model):
+    """Modelo base para auditoría flexible - Permite tanto AdminUser como CustomUser"""
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
+    
+    # Campos de auditoría flexibles que pueden ser AdminUser o CustomUser
+    created_by_admin = models.ForeignKey(
+        'users.AdminUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_created_by_admin",
+        verbose_name="Creado por (Admin)"
+    )
+    created_by_user = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_created_by_user",
+        verbose_name="Creado por (Usuario)"
+    )
+    updated_by_admin = models.ForeignKey(
+        'users.AdminUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_updated_by_admin",
+        verbose_name="Actualizado por (Admin)"
+    )
+    updated_by_user = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_updated_by_user",
+        verbose_name="Actualizado por (Usuario)"
+    )
+
+    class Meta:
+        abstract = True
+    
+    def get_created_by_name(self):
+        """Retorna el nombre de quien creó el registro"""
+        if self.created_by_admin:
+            return self.created_by_admin.get_full_name()
+        elif self.created_by_user:
+            return self.created_by_user.get_full_name()
+        return "Sistema"
+    
+    def get_updated_by_name(self):
+        """Retorna el nombre de quien actualizó el registro"""
+        if self.updated_by_admin:
+            return self.updated_by_admin.get_full_name()
+        elif self.updated_by_user:
+            return self.updated_by_user.get_full_name()
+        return "Sistema"
 
 # ============================================================================
 # MANAGERS PERSONALIZADOS

@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import AuditModel
+from users.models import AuditModel, FlexibleAuditModel
 from albergues.models import Hostel
 
 import uuid
@@ -64,7 +64,7 @@ class HostelService(AuditModel):
         verbose_name_plural = "Servicios de albergue"
         ordering = ['-created_at']
 
-class ReservationService(AuditModel):
+class ReservationService(FlexibleAuditModel):
     """
     Modelo para reservas de servicios.
     """
@@ -105,7 +105,7 @@ class ReservationService(AuditModel):
         ]
 
     def calculate_end_time(self):
-        return self.datetime_reserved + timedelta(minutes=self.service.max_time)
+        return self.datetime_reserved + timedelta(minutes=self.service.service.max_time)
 
     def save(self, *args, **kwargs):
         self.end_datetime_reserved = self.calculate_end_time()
