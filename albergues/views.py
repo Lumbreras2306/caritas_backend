@@ -483,11 +483,19 @@ class HostelReservationViewSet(viewsets.ModelViewSet):
         return HostelReservationSerializer
 
     def perform_create(self, serializer):
-        instance = serializer.save(created_by=self.request.user)
+        # Determinar si es AdminUser o CustomUser
+        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+            instance = serializer.save(created_by_admin=self.request.user)
+        else:
+            instance = serializer.save(created_by_user=self.request.user)
         return instance
 
     def perform_update(self, serializer):
-        instance = serializer.save(updated_by=self.request.user)
+        # Determinar si es AdminUser o CustomUser
+        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+            instance = serializer.save(updated_by_admin=self.request.user)
+        else:
+            instance = serializer.save(updated_by_user=self.request.user)
         return instance
 
     @extend_schema(

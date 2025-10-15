@@ -629,12 +629,20 @@ class ReservationServiceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Personalizar creación de reserva"""
-        instance = serializer.save(created_by=self.request.user)
+        # Determinar si es AdminUser o CustomUser
+        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+            instance = serializer.save(created_by_admin=self.request.user)
+        else:
+            instance = serializer.save(created_by_user=self.request.user)
         return instance
 
     def perform_update(self, serializer):
         """Personalizar actualización de reserva"""
-        instance = serializer.save(updated_by=self.request.user)
+        # Determinar si es AdminUser o CustomUser
+        if hasattr(self.request.user, 'is_staff') and self.request.user.is_staff:
+            instance = serializer.save(updated_by_admin=self.request.user)
+        else:
+            instance = serializer.save(updated_by_user=self.request.user)
         return instance
 
     @extend_schema(

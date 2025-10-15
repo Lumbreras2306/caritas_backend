@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import AuditModel
+from users.models import AuditModel, FlexibleAuditModel
 from albergues.models import Hostel
 import uuid
 

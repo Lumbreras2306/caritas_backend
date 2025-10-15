@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import AuditModel, phone_regex
+from users.models import AuditModel, FlexibleAuditModel, phone_regex
 import uuid
 
 
@@ -200,7 +200,7 @@ class Hostel(AuditModel):
         
         self.save(update_fields=['current_men_capacity', 'current_women_capacity'])
 
-class HostelReservation(AuditModel):
+class HostelReservation(FlexibleAuditModel):
     """
     Modelo para reservas de albergues.
     """

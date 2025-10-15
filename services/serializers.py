@@ -34,7 +34,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     max_time_hours = serializers.SerializerMethodField()
     total_hostels = serializers.SerializerMethodField()
     total_reservations = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Service
@@ -87,7 +87,7 @@ class ServiceScheduleSerializer(serializers.ModelSerializer):
     """Serializer para horarios de servicios"""
     day_name = serializers.SerializerMethodField()
     duration_hours = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = ServiceSchedule
@@ -157,7 +157,7 @@ class HostelServiceSerializer(serializers.ModelSerializer):
     service_needs_approval = serializers.BooleanField(source='service.needs_approval', read_only=True)
     schedule_data = ServiceScheduleSerializer(source='schedule', read_only=True)
     total_reservations = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = HostelService
@@ -310,7 +310,7 @@ class ReservationServiceDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     is_expired = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     updated_by_name = serializers.CharField(source='updated_by.get_full_name', read_only=True)
     
     class Meta:

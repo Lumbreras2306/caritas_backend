@@ -191,7 +191,7 @@ class HostelReservationSerializer(serializers.ModelSerializer):
     total_people = serializers.SerializerMethodField(help_text="Total de personas en la reserva")
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = HostelReservation
@@ -211,6 +211,10 @@ class HostelReservationSerializer(serializers.ModelSerializer):
         men = obj.men_quantity or 0
         women = obj.women_quantity or 0
         return men + women
+    
+    def get_created_by_name(self, obj) -> str:
+        """Obtener el nombre de quien creó la reserva"""
+        return obj.get_created_by_name()
     
     def validate(self, attrs):
         men_quantity = attrs.get('men_quantity')
@@ -261,7 +265,12 @@ class HostelReservationUpdateSerializer(serializers.ModelSerializer):
         
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            instance.updated_by = request.user
+            if hasattr(request.user, 'is_staff') and request.user.is_staff:
+                # Es un AdminUser
+                instance.updated_by_admin = request.user
+            else:
+                # Es un CustomUser
+                instance.updated_by_user = request.user
         
         instance.status = new_status
         instance.save()
