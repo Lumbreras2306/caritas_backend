@@ -84,7 +84,7 @@ class HostelSerializer(serializers.ModelSerializer):
         model = Hostel
         fields = [
             'id', 'name', 'phone', 'men_capacity', 'current_men_capacity', 
-            'women_capacity', 'current_women_capacity', 'is_active',
+            'women_capacity', 'current_women_capacity', 'is_active', 'image_url',
             'location', 'location_data', 'total_capacity', 'current_capacity', 
             'available_capacity', 'coordinates', 'formatted_address',
             'created_by_name', 'created_at', 'updated_at'
@@ -142,7 +142,7 @@ class HostelCreateSerializer(serializers.ModelSerializer):
         model = Hostel
         fields = [
             'name', 'phone', 'men_capacity', 'current_men_capacity', 
-            'women_capacity', 'current_women_capacity', 'is_active', 'location'
+            'women_capacity', 'current_women_capacity', 'is_active', 'image_url', 'location'
         ]
     
     def create(self, validated_data):

@@ -119,6 +119,12 @@ class Hostel(AuditModel):
         verbose_name="Activo",
         help_text="Indica si el albergue está activo"
     )
+    image_url = models.URLField(
+        verbose_name="URL de la imagen del albergue",
+        help_text="URL de la imagen del albergue",
+        null=True,
+        blank=True
+    )
 
     class Meta:
         verbose_name = "Albergue"
