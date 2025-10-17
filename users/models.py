@@ -434,3 +434,19 @@ class CustomUserToken(models.Model):
     
     def __str__(self):
         return f"Token para {self.user.get_full_name()}"
+
+class PrivacyPolicy(models.Model):
+    """
+    Modelo para la política de privacidad.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content = models.FileField(upload_to='privacy_policies/', verbose_name="Política de privacidad")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado en")
+    
+    class Meta:
+        verbose_name = "Política de Privacidad"
+        verbose_name_plural = "Políticas de Privacidad"
+    
+    def __str__(self):
+        return f"Política de privacidad {self.id}"

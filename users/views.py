@@ -9,13 +9,17 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db import transaction
+from django.http import HttpResponse, Http404
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import os
 
 from drf_spectacular.utils import (
     extend_schema, extend_schema_view, OpenApiParameter, 
     OpenApiResponse, OpenApiExample, OpenApiTypes
 )
 
-from .models import CustomUser, PreRegisterUser, AdminUser, STATUS_CHOICES
+from .models import CustomUser, PreRegisterUser, AdminUser, PrivacyPolicy, STATUS_CHOICES
 from .serializers import (
     CustomUserSerializer, PreRegisterUserSerializer, AdminUserSerializer,
     AdminUserLoginSerializer, AdminUserPasswordChangeSerializer, 
@@ -24,7 +28,8 @@ from .serializers import (
     BulkUserDeactivationSerializer, ErrorResponseSerializer,
     SuccessResponseSerializer, TokenResponseSerializer,
     PreRegisterVerificationResponseSerializer, PhoneVerificationSendResponseSerializer,
-    PhoneVerificationCheckResponseSerializer, BulkOperationResponseSerializer
+    PhoneVerificationCheckResponseSerializer, BulkOperationResponseSerializer,
+    PrivacyPolicySerializer, PrivacyPolicyUploadSerializer, PrivacyPolicyResponseSerializer
 )
 from .twilio_verify_service import twilio_verify_service
 
@@ -745,3 +750,163 @@ class UserInfoView(APIView):
             })
         
         return Response(user_info, status=status.HTTP_200_OK)
+
+# ============================================================================
+# VIEWSETS PARA POLÍTICA DE PRIVACIDAD
+# ============================================================================
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Privacy Policy'],
+        summary="Lista políticas de privacidad",
+        description="Obtiene lista paginada de políticas de privacidad",
+        responses={200: PrivacyPolicySerializer(many=True), 401: ErrorResponseSerializer}
+    ),
+    create=extend_schema(
+        tags=['Privacy Policy'],
+        summary="Crear política de privacidad",
+        description="Crea una nueva política de privacidad subiendo un archivo PDF",
+        request=PrivacyPolicyUploadSerializer,
+        responses={
+            201: PrivacyPolicyResponseSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer
+        },
+        examples=[
+            OpenApiExample(
+                'Subir política de privacidad',
+                value={
+                    "content": "archivo.pdf"
+                },
+                request_only=True,
+            )
+        ]
+    ),
+    retrieve=extend_schema(
+        tags=['Privacy Policy'], 
+        summary="Detalle de política de privacidad",
+        responses={200: PrivacyPolicySerializer, 404: ErrorResponseSerializer}
+    ),
+    update=extend_schema(
+        tags=['Privacy Policy'], 
+        summary="Actualizar política de privacidad",
+        request=PrivacyPolicyUploadSerializer,
+        responses={200: PrivacyPolicyResponseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Privacy Policy'], 
+        summary="Actualizar política de privacidad parcial",
+        request=PrivacyPolicyUploadSerializer,
+        responses={200: PrivacyPolicyResponseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Privacy Policy'], 
+        summary="Eliminar política de privacidad",
+        responses={204: None, 404: ErrorResponseSerializer}
+    ),
+)
+class PrivacyPolicyViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestión de políticas de privacidad.
+    
+    Permite subir, descargar y gestionar archivos PDF de políticas de privacidad.
+    Solo los administradores pueden gestionar estas políticas.
+    """
+    queryset = PrivacyPolicy.objects.all()
+    serializer_class = PrivacyPolicySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        """Retornar el serializer apropiado según la acción"""
+        if self.action in ['create', 'update', 'partial_update']:
+            return PrivacyPolicyUploadSerializer
+        return PrivacyPolicySerializer
+
+    def perform_create(self, serializer):
+        """Crear nueva política de privacidad"""
+        instance = serializer.save()
+        return instance
+
+    def perform_update(self, serializer):
+        """Actualizar política de privacidad"""
+        instance = serializer.save()
+        return instance
+
+    @extend_schema(
+        tags=['Privacy Policy'],
+        summary="Descargar política de privacidad",
+        description="Descarga el archivo PDF de la política de privacidad más reciente",
+        responses={
+            200: OpenApiResponse(description="Archivo PDF descargado"),
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        }
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def download_latest(self, request):
+        """Descargar la política de privacidad más reciente"""
+        try:
+            # Obtener la política más reciente
+            latest_policy = PrivacyPolicy.objects.order_by('-created_at').first()
+            
+            if not latest_policy or not latest_policy.content:
+                return Response({
+                    'error': 'No hay política de privacidad disponible',
+                    'detail': 'NO_POLICY_FOUND'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Verificar que el archivo existe
+            if not os.path.exists(latest_policy.content.path):
+                return Response({
+                    'error': 'El archivo de política de privacidad no existe',
+                    'detail': 'FILE_NOT_FOUND'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Preparar respuesta con el archivo
+            response = HttpResponse(
+                latest_policy.content.read(),
+                content_type='application/pdf'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{latest_policy.content.name}"'
+            response['Content-Length'] = latest_policy.content.size
+            
+            return response
+            
+        except Exception as e:
+            return Response({
+                'error': 'Error al descargar la política de privacidad',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        tags=['Privacy Policy'],
+        summary="Obtener política de privacidad actual",
+        description="Obtiene información de la política de privacidad más reciente sin descargar el archivo",
+        responses={
+            200: PrivacyPolicySerializer,
+            404: ErrorResponseSerializer,
+        }
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def current(self, request):
+        """Obtener información de la política de privacidad actual"""
+        try:
+            latest_policy = PrivacyPolicy.objects.order_by('-created_at').first()
+            
+            if not latest_policy:
+                return Response({
+                    'error': 'No hay política de privacidad disponible',
+                    'detail': 'NO_POLICY_FOUND'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            serializer = PrivacyPolicySerializer(latest_policy, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Error al obtener la política de privacidad',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

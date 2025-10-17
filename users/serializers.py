@@ -3,7 +3,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 
 from .models import (
-    CustomUser, PreRegisterUser, AdminUser, 
+    CustomUser, PreRegisterUser, AdminUser, PrivacyPolicy,
     STATUS_CHOICES, phone_regex, validate_phone_number
 )
 
@@ -303,6 +303,76 @@ class PhoneVerificationCheckResponseSerializer(serializers.Serializer):
     message = serializers.CharField(help_text="Mensaje de confirmación")
     token = serializers.CharField(help_text="Token de autenticación del usuario")
     user = UserInfoResponseSerializer(help_text="Información del usuario autenticado")
+
+# ============================================================================
+# SERIALIZERS PARA POLÍTICA DE PRIVACIDAD
+# ============================================================================
+
+class PrivacyPolicySerializer(serializers.ModelSerializer):
+    """Serializer para gestión de políticas de privacidad"""
+    file_name = serializers.CharField(source='content.name', read_only=True, help_text="Nombre del archivo")
+    file_size = serializers.SerializerMethodField(help_text="Tamaño del archivo en bytes")
+    file_url = serializers.SerializerMethodField(help_text="URL para descargar el archivo")
+    
+    class Meta:
+        model = PrivacyPolicy
+        fields = [
+            'id', 'content', 'file_name', 'file_size', 'file_url',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'file_name', 'file_size', 'file_url']
+    
+    def get_file_size(self, obj):
+        """Obtener el tamaño del archivo en bytes"""
+        if obj.content:
+            try:
+                return obj.content.size
+            except (OSError, ValueError):
+                return None
+        return None
+    
+    def get_file_url(self, obj):
+        """Obtener la URL para descargar el archivo"""
+        if obj.content:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.content.url)
+            return obj.content.url
+        return None
+    
+    def validate_content(self, value):
+        """Validar que el archivo sea un PDF"""
+        if value:
+            # Verificar extensión
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError("Solo se permiten archivos PDF")
+            
+            # Verificar tamaño (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError("El archivo no puede ser mayor a 10MB")
+        
+        return value
+
+class PrivacyPolicyUploadSerializer(serializers.Serializer):
+    """Serializer para subida de política de privacidad"""
+    content = serializers.FileField(
+        help_text="Archivo PDF de la política de privacidad (máximo 10MB)"
+    )
+    
+    def validate_content(self, value):
+        """Validar el archivo PDF"""
+        if not value.name.lower().endswith('.pdf'):
+            raise serializers.ValidationError("Solo se permiten archivos PDF")
+        
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("El archivo no puede ser mayor a 10MB")
+        
+        return value
+
+class PrivacyPolicyResponseSerializer(serializers.Serializer):
+    """Serializer para respuesta de operaciones con política de privacidad"""
+    message = serializers.CharField(help_text="Mensaje descriptivo")
+    data = PrivacyPolicySerializer(required=False, allow_null=True, help_text="Datos de la política de privacidad")
 
 # ============================================================================
 # SERIALIZERS PARA OPERACIONES MASIVAS

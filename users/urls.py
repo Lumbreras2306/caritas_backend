@@ -7,6 +7,7 @@ from .views import (
     CustomUserViewSet,
     AdminUserViewSet,
     PhoneVerificationViewSet,
+    PrivacyPolicyViewSet,
     AdminUserLoginView,
     AdminUserLogoutView,
     CustomObtainAuthToken,
@@ -25,6 +26,7 @@ router.register(r'pre-register', PreRegisterUserViewSet, basename='preregisterus
 router.register(r'customers', CustomUserViewSet, basename='customuser')
 router.register(r'admins', AdminUserViewSet, basename='adminuser')
 router.register(r'phone-verification', PhoneVerificationViewSet, basename='phoneverification')
+router.register(r'privacy-policy', PrivacyPolicyViewSet, basename='privacypolicy')
 
 # ============================================================================
 # PATRONES DE URL
@@ -95,6 +97,16 @@ Verificación de Teléfono:
 - DELETE /api/users/phone-verification/{id}/         - Eliminar verificación
 - POST   /api/users/phone-verification/send/         - Enviar código de verificación
 - POST   /api/users/phone-verification/verify/       - Verificar código
+
+Política de Privacidad:
+- GET    /api/users/privacy-policy/                  - Lista políticas de privacidad
+- POST   /api/users/privacy-policy/                  - Crear nueva política de privacidad
+- GET    /api/users/privacy-policy/{id}/              - Detalle de política de privacidad
+- PUT    /api/users/privacy-policy/{id}/             - Actualizar política de privacidad completa
+- PATCH  /api/users/privacy-policy/{id}/             - Actualizar política de privacidad parcial
+- DELETE /api/users/privacy-policy/{id}/             - Eliminar política de privacidad
+- GET    /api/users/privacy-policy/download-latest/ - Descargar política de privacidad más reciente
+- GET    /api/users/privacy-policy/current/          - Obtener información de política actual
 
 Autenticación:
 - POST   /api/users/auth/admin-login/                - Login de administradores
