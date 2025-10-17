@@ -220,7 +220,14 @@ class HostelReservation(FlexibleAuditModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, verbose_name="Usuario")
     hostel = models.ForeignKey(Hostel, on_delete=models.CASCADE, verbose_name="Albergue")
-    status = models.CharField(max_length=255, verbose_name="Estado", choices=ReservationStatus.choices)
+    status = models.CharField(
+        default=ReservationStatus.PENDING, 
+        max_length=255, 
+        verbose_name="Estado", 
+        choices=ReservationStatus.choices,
+        blank=True,
+        null=True
+    )
     type = models.CharField(max_length=255, verbose_name="Tipo", choices=ReservationType.choices)
 
     # Campos específicos
@@ -241,3 +248,66 @@ class HostelReservation(FlexibleAuditModel):
 
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.hostel.name} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        """Override save para actualizar automáticamente la capacidad del albergue"""
+        # Obtener el estado anterior si existe
+        old_status = None
+        if self.pk:
+            try:
+                old_instance = HostelReservation.objects.get(pk=self.pk)
+                old_status = old_instance.status
+            except HostelReservation.DoesNotExist:
+                pass
+        
+        # Asegurar que el status tenga un valor por defecto si es None
+        if self.status is None:
+            self.status = self.ReservationStatus.PENDING
+        
+        # Guardar la instancia
+        super().save(*args, **kwargs)
+        
+        # Actualizar capacidad del albergue si el estado cambió
+        if old_status != self.status:
+            self._update_hostel_capacity(old_status, self.status)
+    
+    def _update_hostel_capacity(self, old_status, new_status):
+        """Actualiza la capacidad del albergue basado en el cambio de estado"""
+        hostel = self.hostel
+        men_quantity = self.men_quantity or 0
+        women_quantity = self.women_quantity or 0
+        
+        # Si se hace check-in (entrada al albergue) - ACTUALIZA la capacidad
+        if new_status == self.ReservationStatus.CHECKED_IN:
+            # Verificar que hay capacidad disponible
+            if not hostel.has_capacity_for(men_quantity, women_quantity):
+                raise ValueError(
+                    f"No hay capacidad suficiente en el albergue. "
+                    f"Disponible: {hostel.get_available_capacity()}, "
+                    f"Solicitado: {men_quantity} hombres, {women_quantity} mujeres"
+                )
+            # Agregar a la capacidad actual
+            hostel.add_to_current_capacity(men_quantity, women_quantity)
+        
+        # Si se hace check-out (salida del albergue) - LIBERA la capacidad
+        elif new_status == self.ReservationStatus.CHECKED_OUT:
+            # Liberar la capacidad
+            hostel.remove_from_current_capacity(men_quantity, women_quantity)
+        
+        # Si se cancela o rechaza una reserva que ya estaba ocupando espacio
+        elif (old_status == self.ReservationStatus.CHECKED_IN and 
+              new_status in [self.ReservationStatus.CANCELLED, self.ReservationStatus.REJECTED]):
+            # Liberar la capacidad que estaba ocupando
+            hostel.remove_from_current_capacity(men_quantity, women_quantity)
+        
+        # Si se confirma una reserva pendiente - SOLO VERIFICA, NO actualiza
+        elif (old_status == self.ReservationStatus.PENDING and 
+              new_status == self.ReservationStatus.CONFIRMED):
+            # Solo verificar capacidad disponible, NO actualizar
+            if not hostel.has_capacity_for(men_quantity, women_quantity):
+                raise ValueError(
+                    f"No hay capacidad suficiente en el albergue. "
+                    f"Disponible: {hostel.get_available_capacity()}, "
+                    f"Solicitado: {men_quantity} hombres, {women_quantity} mujeres"
+                )
+            # NO se actualiza la capacidad aquí, solo se verifica

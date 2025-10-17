@@ -193,6 +193,13 @@ class HostelReservationSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     created_by_name = serializers.SerializerMethodField()
     
+    # Hacer el campo status opcional para creación
+    status = serializers.ChoiceField(
+        choices=HostelReservation.ReservationStatus.choices,
+        required=False,
+        help_text="Estado de la reserva (por defecto: pending)"
+    )
+    
     class Meta:
         model = HostelReservation
         fields = [
@@ -260,7 +267,6 @@ class HostelReservationUpdateSerializer(serializers.ModelSerializer):
         fields = ['status']
     
     def update(self, instance, validated_data):
-        old_status = instance.status
         new_status = validated_data.get('status', instance.status)
         
         request = self.context.get('request')
@@ -273,30 +279,9 @@ class HostelReservationUpdateSerializer(serializers.ModelSerializer):
                 instance.updated_by_user = request.user
         
         instance.status = new_status
-        instance.save()
-        
-        self._update_hostel_capacity(instance, old_status, new_status)
+        instance.save()  # La actualización de capacidad se maneja automáticamente en el modelo
         
         return instance
-    
-    def _update_hostel_capacity(self, reservation, old_status, new_status):
-        hostel = reservation.hostel
-        
-        if old_status != 'confirmed' and new_status == 'confirmed':
-            self._add_to_current_capacity(hostel, reservation)
-        
-        elif old_status == 'confirmed' and new_status in ['cancelled', 'rejected', 'completed']:
-            self._remove_from_current_capacity(hostel, reservation)
-    
-    def _add_to_current_capacity(self, hostel, reservation):
-        men_quantity = reservation.men_quantity or 0
-        women_quantity = reservation.women_quantity or 0
-        hostel.add_to_current_capacity(men_quantity, women_quantity)
-    
-    def _remove_from_current_capacity(self, hostel, reservation):
-        men_quantity = reservation.men_quantity or 0
-        women_quantity = reservation.women_quantity or 0
-        hostel.remove_from_current_capacity(men_quantity, women_quantity)
 
 class BulkStatusUpdateSerializer(serializers.Serializer):
     """Serializer para actualización masiva de estados de reservas"""
