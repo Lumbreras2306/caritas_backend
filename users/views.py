@@ -765,7 +765,17 @@ class UserInfoView(APIView):
     create=extend_schema(
         tags=['Privacy Policy'],
         summary="Crear política de privacidad",
-        description="Crea una nueva política de privacidad subiendo un archivo PDF",
+        description="""
+        Crea una nueva política de privacidad subiendo un archivo PDF.
+        
+        **Importante**: Este endpoint requiere enviar un archivo usando `multipart/form-data`.
+        En Swagger UI, haz clic en "Try it out" y luego en "Choose File" para seleccionar tu archivo PDF.
+        
+        **Restricciones**:
+        - Solo archivos PDF
+        - Tamaño máximo: 10MB
+        - Requiere autenticación de administrador
+        """,
         request=PrivacyPolicyUploadSerializer,
         responses={
             201: PrivacyPolicyResponseSerializer,
@@ -775,6 +785,8 @@ class UserInfoView(APIView):
         examples=[
             OpenApiExample(
                 'Subir política de privacidad',
+                summary="Ejemplo de subida de archivo",
+                description="Selecciona un archivo PDF desde tu computadora",
                 value={
                     "content": "archivo.pdf"
                 },

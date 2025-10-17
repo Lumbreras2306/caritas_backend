@@ -353,11 +353,12 @@ class PrivacyPolicySerializer(serializers.ModelSerializer):
         
         return value
 
-class PrivacyPolicyUploadSerializer(serializers.Serializer):
+class PrivacyPolicyUploadSerializer(serializers.ModelSerializer):
     """Serializer para subida de política de privacidad"""
-    content = serializers.FileField(
-        help_text="Archivo PDF de la política de privacidad (máximo 10MB)"
-    )
+    
+    class Meta:
+        model = PrivacyPolicy
+        fields = ['content']
     
     def validate_content(self, value):
         """Validar el archivo PDF"""
