@@ -5,6 +5,8 @@ from django.urls import path, include
 from django.http import HttpResponse
 from django.contrib import admin
 from django.views.generic import TemplateView
+from django.conf import settings
+from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 def documentation_view(request):
@@ -158,3 +160,8 @@ urlpatterns = [
         extra_context={'title': 'API de Caritas - Swagger UI'}
     ), name='swagger-auth'),
 ]
+
+# Servir archivos media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

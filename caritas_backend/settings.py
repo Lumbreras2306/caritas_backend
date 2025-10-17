@@ -445,6 +445,21 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 # ============================================================================
+# CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS Y MEDIA
+# ============================================================================
+
+# Archivos estáticos (CSS, JS, imágenes)
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# Archivos de media (archivos subidos por usuarios)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ============================================================================
 # CONFIGURACIÓN DE CACHE
 # ============================================================================
 
