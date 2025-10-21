@@ -43,7 +43,7 @@ class PreRegisterUserSerializer(serializers.ModelSerializer):
             'id', 'first_name', 'last_name', 'phone_number', 
             'age', 'gender', 'privacy_policy_accepted', 'status', 'created_at'
         ]
-        read_only_fields = ['id', 'status', 'created_at']
+        read_only_fields = ['id', 'created_at']
     
     def validate_phone_number(self, value):
         """Validar número de teléfono"""
@@ -57,6 +57,13 @@ class PreRegisterUserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Debe ser mayor de 18 años")
         if value > 100:
             raise serializers.ValidationError("Edad no válida")
+        return value
+    
+    def validate_status(self, value):
+        """Validar status"""
+        valid_statuses = [choice[0] for choice in STATUS_CHOICES.choices]
+        if value not in valid_statuses:
+            raise serializers.ValidationError(f"Status debe ser uno de: {', '.join(valid_statuses)}")
         return value
     
     def create(self, validated_data):
