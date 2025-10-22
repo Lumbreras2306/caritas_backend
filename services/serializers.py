@@ -370,6 +370,10 @@ class ReservationServiceDetailSerializer(serializers.ModelSerializer):
         if obj.end_datetime_reserved:
             return timezone.now() > obj.end_datetime_reserved
         return False
+    
+    def get_created_by_name(self, obj) -> str:
+        """Obtener el nombre de quien creó la reserva"""
+        return obj.get_created_by_name()
 
 class BulkServiceReservationStatusUpdateSerializer(serializers.Serializer):
     """Serializer para actualización masiva de estados de reservas de servicios"""
